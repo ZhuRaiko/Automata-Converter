@@ -1,0 +1,30 @@
+/* cfg.css - styles specific to CFG / PDA page */
+
+#cfg-diagram-section {
+    display: flex;
+    gap: 12px;
+}
+
+#cy-pda {
+    flex: 1 1 auto;
+    height: 420px;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+
+#stack-contents {
+    display: flex;
+    flex-direction: column-reverse; /* show top of stack at top visually */
+    gap: 6px;
+}
+
+.stack-box {
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    text-align: center;
+}
+
+/* Highlighting styles for stack top */
+.stack-top { border-color: #1976d2; box-shadow: 0 0 8px rgba(25,118,210,0.15); }

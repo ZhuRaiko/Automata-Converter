@@ -1,0 +1,24 @@
+/* regex.css - styles specific to Regex page */
+
+.tabs { display:flex; gap:8px; margin-bottom:8px; }
+.tab-btn { padding:6px 10px; border-radius:4px; border:1px solid #ddd; background:#fafafa; cursor:pointer; }
+.tab-btn.active { background:#1976d2; color:#fff; border-color:#1976d2; }
+
+.diagram { display:none; }
+.diagram.active { display:block; }
+
+/* Visual for current character display */
+#current-char { margin-top:8px; font-weight: bold; }
+#char-display { color: #1976d2; }
+
+/* Cytoscape node/edge highlight helpers (applied via class names) */
+.cy-node-active { box-shadow: 0 0 18px rgba(25,118,210,0.55); }
+.cy-edge-active { line-color: #1976d2; }
+.cy-valid { background-color: #2e7d32 !important; border-color: #2e7d32 !important; }
+.cy-invalid { background-color: #c62828 !important; border-color: #c62828 !important; }
+
+/* Small responsive tweak */
+@media (max-width: 700px) {
+    .horizontal { flex-direction: column; }
+    #stack-panel { width: 100%; }
+}
