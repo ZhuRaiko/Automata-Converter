@@ -1,0 +1,113 @@
+/* style.css - shared styles across the app */
+
+/* Page container */
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #f7f7f9;
+    color: #222;
+}
+
+.container, .page {
+    max-width: 1000px;
+    margin: 24px auto;
+    padding: 16px;
+}
+
+header h1 {
+    margin: 0 0 8px 0;
+}
+
+.modes {
+    display: flex;
+    gap: 16px;
+}
+
+.mode-card {
+    display: block;
+    flex: 1 1 0;
+    padding: 18px;
+    text-decoration: none;
+    color: inherit;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+}
+
+.mode-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.panel {
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    padding: 12px;
+    margin: 12px 0;
+    border-radius: 6px;
+}
+
+label {
+    display: block;
+    margin: 8px 0 4px 0;
+}
+
+input[type="text"], textarea {
+    display: block;
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.controls {
+    margin-top: 10px;
+}
+
+button {
+    padding: 8px 12px;
+    margin-right: 8px;
+    border: none;
+    background: #1976d2;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Step viewer */
+#steps-list, #cfg-steps-list {
+    margin: 0;
+    padding-left: 20px;
+}
+
+/* Cytoscape container sizing */
+.cytoscape-container {
+    width: 100%;
+    height: 420px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+}
+
+/* Small utility */
+.horizontal {
+    display: flex;
+    gap: 12px;
+}
+
+/* Stack panel styles (used by cfg page) */
+#stack-panel {
+    width: 260px;
+}
+
+.stack-contents {
+    border: 1px dashed #ccc;
+    padding: 8px;
+    min-height: 120px;
+    background: #fafafa;
+}

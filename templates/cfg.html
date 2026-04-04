@@ -1,0 +1,59 @@
+<!-- cfg.html -->
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>CFG → PDA</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/cfg.css">
+</head>
+<body>
+    <!-- Input Panel -->
+    <div class="page">
+        <header>
+            <h1>CFG → PDA</h1>
+            <nav><a href="/">Home</a> • <a href="/regex">Regex → NFA / DFA</a></nav>
+        </header>
+
+        <section id="input-panel" class="panel">
+            <h2>Input</h2>
+            <label for="cfg-input">CFG rules (one per line)</label>
+            <textarea id="cfg-input" rows="6" placeholder="S -> aSb | ε\n"></textarea>
+
+            <label for="cfg-test-input">Test string</label>
+            <input id="cfg-test-input" type="text" placeholder="aabb" />
+
+            <div class="controls">
+                <button id="cfg-convert-btn">Convert</button>
+                <button id="cfg-run-btn">Run</button>
+                <button id="cfg-reset-btn">Reset</button>
+            </div>
+        </section>
+
+        <!-- Step Viewer -->
+        <section id="cfg-steps" class="panel">
+            <h2>Steps</h2>
+            <ol id="cfg-steps-list"></ol>
+        </section>
+
+        <!-- Diagram + Stack Panel -->
+        <section id="cfg-diagram-section" class="panel horizontal">
+            <div id="cy-pda" class="cytoscape-container"></div>
+            <aside id="stack-panel">
+                <h3>Stack</h3>
+                <div id="stack-contents" class="stack-contents">Empty Stack</div>
+            </aside>
+        </section>
+
+        <footer>
+            <p>PDA simulation shows stack updates live.</p>
+        </footer>
+    </div>
+
+    <!-- Cytoscape CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+    <!-- Page script -->
+    <script src="/static/js/cfg.js"></script>
+</body>
+</html>

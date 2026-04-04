@@ -1,0 +1,71 @@
+<!-- regex.html -->
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Regex → NFA / DFA</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/regex.css">
+</head>
+<body>
+    <!-- Input Panel -->
+    <div class="page">
+        <header>
+            <h1>Regex → NFA / DFA</h1>
+            <nav><a href="/">Home</a> • <a href="/cfg">CFG → PDA</a></nav>
+        </header>
+
+        <section id="input-panel" class="panel">
+            <h2>Input</h2>
+            <label for="regex-input">Regular expression</label>
+            <input id="regex-input" type="text" placeholder="(a|b)*abb" />
+
+            <label for="test-input">Test string</label>
+            <input id="test-input" type="text" placeholder="aabb" />
+
+            <div class="controls">
+                <button id="convert-btn">Convert</button>
+                <button id="run-btn">Run</button>
+                <button id="reset-btn">Reset</button>
+            </div>
+        </section>
+
+        <!-- Step Viewer: displays algorithm steps and results -->
+        <section id="step-viewer" class="panel">
+            <h2>Steps</h2>
+            <ol id="steps-list">
+                <!-- JS will populate step items here -->
+            </ol>
+        </section>
+
+        <!-- Diagram Panel with NFA / DFA tabs -->
+        <section id="diagram-panel" class="panel">
+            <div class="tabs">
+                <button class="tab-btn active" data-target="nfa">NFA</button>
+                <button class="tab-btn" data-target="dfa">DFA</button>
+            </div>
+
+            <div id="nfa" class="diagram active">
+                <!-- Cytoscape container for NFA -->
+                <div id="cy-nfa" class="cytoscape-container"></div>
+            </div>
+
+            <div id="dfa" class="diagram">
+                <!-- Cytoscape container for DFA -->
+                <div id="cy-dfa" class="cytoscape-container"></div>
+                <div id="current-char" class="current-char">Current char: <span id="char-display">-</span></div>
+            </div>
+        </section>
+
+        <footer>
+            <p>Diagrams rendered with Cytoscape.js (CDN). No build tools required.</p>
+        </footer>
+    </div>
+
+    <!-- Cytoscape CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+    <!-- Page script -->
+    <script src="/static/js/regex.js"></script>
+</body>
+</html>

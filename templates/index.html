@@ -1,0 +1,36 @@
+<!-- index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Automata Converter - Landing</title>
+    <!-- Shared styles -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Landing / Mode selection -->
+    <main class="container">
+        <header>
+            <h1>Automata Converter</h1>
+            <p>Choose a mode to begin: Regex &rarr; NFA/DFA or CFG &rarr; PDA</p>
+        </header>
+
+        <section class="modes">
+            <a class="mode-card" href="/regex">
+                <h2>Regex → NFA / DFA</h2>
+                <p>Enter a regular expression, view the NFA / DFA, and test strings.</p>
+            </a>
+
+            <a class="mode-card" href="/cfg">
+                <h2>CFG → PDA</h2>
+                <p>Enter CFG rules, build a PDA, and simulate stack-based parsing.</p>
+            </a>
+        </section>
+
+        <footer>
+            <p>Run locally with: <code>python app.py</code></p>
+        </footer>
+    </main>
+</body>
+</html>
