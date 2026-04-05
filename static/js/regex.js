@@ -120,9 +120,15 @@ function createCy(containerId, elements) {
                 'border-width': 6,
                 'border-style': 'double',
             }},
-            { selector: '.active', style: {
+            { selector: 'node.active', style: {
                 'background-color': '#ffe082',
                 'border-color': '#ffb300'
+            }},
+            { selector: 'edge.active', style: {
+                'line-color': '#ffb300',
+                'target-arrow-color': '#ffb300',
+                'width': 4,
+                'z-index': 2
             }},
             { selector: '.valid', style: {
                 'background-color': '#2e7d32',
