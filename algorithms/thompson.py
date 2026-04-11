@@ -103,7 +103,16 @@ class NFA:
         self.accept = accept
         self.transitions = transitions
 
+# Global counter used to generate unique NFA state names like s0, s1, s2, ...
 state_counter = itertools.count()
+
+# Reset the state counter before compiling a new regex.
+# This prevents state names from continuing to increment across repeated conversions,
+# which otherwise makes the same regex appear to have different NFA numbering after each run.
+def reset_state_counter():
+    global state_counter
+    state_counter = itertools.count()
+
 
 def new_state():
     return f"s{next(state_counter)}"
@@ -142,18 +151,25 @@ def thompson(node):
     raise ValueError("Unknown AST node")
 
 def compile_regex(regex):
+    # Start each regex compilation with a fresh state counter so NFA state IDs are stable.
+    reset_state_counter()
     ast = Parser(regex).parse()
     return thompson(ast)
 
 def nfa_to_dict(nfa):
+    def state_sort_key(state):
+        if state.startswith('s') and state[1:].isdigit():
+            return int(state[1:])
+        return state
+
     states = set(nfa.transitions.keys())
     for edges in nfa.transitions.values():
         for _, to_state in edges:
             states.add(to_state)
-    states = sorted(states)
+    states = sorted(states, key=state_sort_key)
     transitions = []
-    for from_state, edges in nfa.transitions.items():
-        for symbol, to_state in edges:
+    for from_state in sorted(nfa.transitions.keys(), key=state_sort_key):
+        for symbol, to_state in nfa.transitions[from_state]:
             transitions.append({
                 "from": from_state,
                 "to": to_state,

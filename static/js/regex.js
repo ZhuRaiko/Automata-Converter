@@ -54,6 +54,95 @@ async function postJson(url, body) {
     return res.json();
 }
 
+/** Build a lookup map from NFA transitions.
+ *  This converts the list-of-edges NFA format into a keyed map for faster simulation.
+ */
+function buildNfaTransitionMap(nfa) {
+    const map = {};
+    nfa.transitions.forEach(t => {
+        if (!map[t.from]) map[t.from] = [];
+        map[t.from].push({ symbol: t.symbol, to: t.to });
+    });
+    return map;
+}
+
+/** Compute the epsilon-closure of a set of NFA states.
+ *  Returns every state reachable from the current set by following ε-transitions only.
+ */
+function epsilonClosure(states, transitions) {
+    const closure = new Set(states);
+    const stack = [...states];
+    while (stack.length) {
+        const state = stack.pop();
+        const edges = transitions[state] || [];
+        edges.forEach(({ symbol, to }) => {
+            if (symbol === 'ε' && !closure.has(to)) {
+                closure.add(to);
+                stack.push(to);
+            }
+        });
+    }
+    return closure;
+}
+
+function nfaMove(states, symbol, transitions) {
+    const result = new Set();
+    states.forEach(state => {
+        const edges = transitions[state] || [];
+        edges.forEach(({ symbol: edgeSym, to }) => {
+            if (edgeSym === symbol) result.add(to);
+        });
+    });
+    return result;
+}
+
+/** Simulate the NFA on the input string and record each reachable state set.
+ *  The returned `steps` array includes the initial epsilon-closure before any input
+ *  symbol is consumed, and then one entry per consumed symbol.
+ */
+function runNfaSimulation(nfa, input) {
+    const transitions = buildNfaTransitionMap(nfa);
+    let current = epsilonClosure(new Set([nfa.start_state]), transitions);
+    const steps = [current];
+    for (const ch of input) {
+        const moved = nfaMove(current, ch, transitions);
+        current = epsilonClosure(moved, transitions);
+        steps.push(current);
+    }
+    const valid = current.has(nfa.final_state);
+    return { valid, steps };
+}
+
+/** Animate the NFA state sets as the input string is consumed.
+ *  Highlights all currently active states and the transitions triggered by each symbol.
+ */
+async function animateNfaPath(steps, input) {
+    const delay = 600;
+    for (let i = 0; i < steps.length; i++) {
+        cyNfa.elements().removeClass('active');
+        const activeStates = Array.from(steps[i]);
+        activeStates.forEach(state => {
+            const node = cyNfa.getElementById('n' + state);
+            if (node) node.addClass('active');
+        });
+
+        if (i < input.length) {
+            const ch = input[i];
+            charDisplay.textContent = ch;
+            activeStates.forEach(state => {
+                const edgeTargets = cyNfa.edges().filter(e =>
+                    e.data('source') === 'n' + state &&
+                    e.data('label') === ch
+                );
+                edgeTargets.addClass('active');
+            });
+        } else {
+            charDisplay.textContent = '-';
+        }
+        await new Promise(r => setTimeout(r, delay));
+    }
+}
+
 // ------------------------- Cytoscape builders ------------------------- //
 
 /** Build Cytoscape elements for the provided NFA dict.
@@ -214,10 +303,28 @@ convertBtn.addEventListener('click', async () => {
 
 // Run button: animate DFA traversal using backend path
 runBtn.addEventListener('click', async () => {
-    if (!currentDfa) { alert('Please convert a regex first.'); return; }
     const s = testInput.value || '';
     currentTestString = s;
+    const activePanel = document.querySelector('.tab-btn.active')?.dataset.target || 'dfa';
 
+    if (activePanel === 'nfa') {
+        if (!currentNfa) { alert('Please convert a regex first.'); return; }
+        clearSteps();
+        addStep('Simulating input on the NFA...');
+
+        const result = runNfaSimulation(currentNfa, s);
+        await animateNfaPath(result.steps, s);
+        if (result.valid) {
+            cyNfa.elements().addClass('valid');
+            addStep('Result: VALID (accepted by NFA)');
+        } else {
+            cyNfa.elements().addClass('invalid');
+            addStep('Result: INVALID (rejected by NFA)');
+        }
+        return;
+    }
+
+    if (!currentDfa) { alert('Please convert a regex first.'); return; }
     // Request checker
     const res = await postJson('/api/regex/check', { dfa: currentDfa, string: s });
     if (res.error) { addStep('Error: ' + res.error); return; }
@@ -225,8 +332,8 @@ runBtn.addEventListener('click', async () => {
     const path = res.path || [];
     const valid = !!res.valid;
 
-    // Switch to DFA tab automatically
-    document.querySelector('.tab-btn[data-target="dfa"]').click();
+    // Do not force a tab switch; keep the user's current view.
+    // The simulation always uses DFA data, but the current tab stays as selected.
 
     // Animate path: highlight states and edges sequentially
     const delay = 600; // ms
