@@ -5,11 +5,12 @@ Flask application serving the Regex (Thompson -> NFA -> DFA) and CFG -> PDA
 pipelines as JSON APIs and a small set of HTML pages. The Flask app exposes the
 following endpoints (all JSON POSTs return JSON responses):
 
-POST /api/regex/nfa    -> compiles regex to NFA (uses algorithms.thompson)
-POST /api/regex/dfa    -> converts NFA dict to DFA (uses algorithms.subset_construction)
-POST /api/regex/check  -> runs DFA checker on a test string
-POST /api/cfg/pda      -> converts CFG text to PDA (uses algorithms.cfg_to_pda)
-POST /api/cfg/check    -> runs PDA simulation on a test string
+POST /api/regex/nfa        -> compiles regex to NFA (uses algorithms.thompson)
+POST /api/regex/dfa        -> converts NFA dict to DFA (uses algorithms.subset_construction)
+POST /api/regex/check      -> runs DFA checker on a test string
+POST /api/regex/nfa/check  -> runs NFA simulator on a test string (per-step active set)
+POST /api/cfg/pda          -> converts CFG text to PDA (uses algorithms.cfg_to_pda)
+POST /api/cfg/check        -> runs PDA simulation on a test string
 
 GET /       -> serves index.html
 GET /regex   -> serves regex.html
@@ -24,6 +25,7 @@ from flask import Flask, request, jsonify, render_template
 import algorithms.thompson as thompson
 import algorithms.subset_construction as subset
 import algorithms.string_checker_dfa as checker_dfa
+import algorithms.string_checker_nfa as checker_nfa
 import algorithms.cfg_to_pda as cfg_to_pda
 import algorithms.string_checker_pda as checker_pda
 
@@ -81,6 +83,24 @@ def api_regex_check():
     try:
         result = checker_dfa.run_dfa_checker(dfa, s)
         return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route('/api/regex/nfa/check', methods=['POST'])
+def api_regex_nfa_check():
+    """Simulate the NFA on a test string and return per-step active-set traces.
+
+    Expects JSON body: { "nfa": <nfa-dict>, "string": "aabb" }
+    Returns: { "valid": True/False, "steps": [ {states, char, edges}, ... ] }
+    """
+    data = request.get_json(force=True)
+    nfa = data.get('nfa') if data else None
+    s = data.get('string', '') if data else ''
+    if not nfa:
+        return jsonify({"error": "Missing 'nfa' in request body"}), 400
+    try:
+        return jsonify(checker_nfa.run_nfa_checker(nfa, s))
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 

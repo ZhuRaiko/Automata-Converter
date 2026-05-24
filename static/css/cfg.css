@@ -14,7 +14,11 @@
 
 #stack-contents {
     display: flex;
-    flex-direction: column-reverse; /* show top of stack at top visually */
+    /* The JS already passes the stack with the top symbol first, so we render
+       top-to-bottom in normal column order. (Previously this was column-reverse
+       AND the JS also reversed — the two cancelled out and the stack rendered
+       upside-down with Z appearing on top.) */
+    flex-direction: column;
     gap: 6px;
 }
 
@@ -24,7 +28,22 @@
     border-radius: 4px;
     background: white;
     text-align: center;
+    transition: background 0.2s ease-out, border-color 0.2s ease-out;
 }
 
-/* Highlighting styles for stack top */
-.stack-top { border-color: #1976d2; box-shadow: 0 0 8px rgba(25,118,210,0.15); }
+/* Stack top highlight. The .pop and .push classes are added transiently so
+   the top box flashes when it changes. */
+.stack-top {
+    border-color: #1976d2;
+    box-shadow: 0 0 8px rgba(25, 118, 210, 0.18);
+}
+@keyframes stack-push {
+    0%   { background: rgba(46, 125, 50, 0.85); transform: scale(1.25); }
+    100% { background: white;                   transform: scale(1.0); }
+}
+@keyframes stack-pop {
+    0%   { background: rgba(198, 40, 40, 0.85); transform: scale(1.25); }
+    100% { background: white;                   transform: scale(1.0); }
+}
+.stack-box.push { animation: stack-push 0.5s ease-out; }
+.stack-box.pop  { animation: stack-pop  0.5s ease-out; }

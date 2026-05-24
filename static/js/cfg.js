@@ -1,53 +1,94 @@
 /*
 cfg.js
 
-Frontend logic for the CFG -> PDA page.
+Frontend for the CFG -> PDA page.
 
-Responsibilities:
-- Send the CFG text to the backend to construct a PDA
-- Render the PDA as a Cytoscape graph
-- Request PDA simulation steps for a test string and animate them
-- Update a visual stack panel in sync with the animation
-
-All functions include comments to explain expected inputs and DOM effects.
+What it does:
+- Sends the CFG to /api/cfg/pda, renders the PDA in Cytoscape.
+- Sends a test string to /api/cfg/check, animates the step trace:
+    * the active state lights up (sticky) and pulses on entry,
+    * the transition edge between consecutive states gets "marching ants"
+      (animated line-dash-offset) so the direction of travel is obvious,
+    * the stack panel updates per step with push/pop flashes on the top box.
 */
 
-const cfgInput = document.getElementById('cfg-input');
+const cfgInput     = document.getElementById('cfg-input');
 const cfgConvertBtn = document.getElementById('cfg-convert-btn');
-const cfgRunBtn = document.getElementById('cfg-run-btn');
-const cfgResetBtn = document.getElementById('cfg-reset-btn');
+const cfgRunBtn    = document.getElementById('cfg-run-btn');
+const cfgResetBtn  = document.getElementById('cfg-reset-btn');
 const cfgStepsList = document.getElementById('cfg-steps-list');
 const stackContents = document.getElementById('stack-contents');
 
 let cyPda = null;
 let currentPda = null;
 let currentSteps = null;
+let lastStack = [];
 
 async function postJson(url, body) {
     const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
     });
     return res.json();
 }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 function clearCfgSteps() { cfgStepsList.innerHTML = ''; }
-function addCfgStep(text) { const li = document.createElement('li'); li.textContent = text; cfgStepsList.appendChild(li); }
+function addCfgStep(text) {
+    const li = document.createElement('li');
+    li.textContent = text;
+    cfgStepsList.appendChild(li);
+    // Keep the newest step visible inside the scrollable step viewer.
+    cfgStepsList.scrollTop = cfgStepsList.scrollHeight;
+}
+
+// ----------------------------- Marching ants ----------------------------- //
+
+let antsTimer = null;
+let antsOffset = 0;
+function startAnts() {
+    if (antsTimer) return;
+    antsTimer = setInterval(() => {
+        antsOffset = (antsOffset - 3) % 1000;
+        if (!cyPda) return;
+        cyPda.edges('.traversing').forEach(e => e.style('line-dash-offset', antsOffset));
+    }, 60);
+}
+function stopAnts() {
+    if (antsTimer) { clearInterval(antsTimer); antsTimer = null; }
+}
+
+// ----------------------------- Cytoscape build ----------------------------- //
 
 function buildPdaElements(pda) {
-    // Nodes: create nodes for each state in pda.states
     const nodes = pda.states.map(s => ({ data: { id: s, label: s } }));
     const edges = [];
     let edgeId = 0;
     for (const t of pda.transitions) {
-        const label = `${t.input || 'ε'}, ${t.stack_top} → ${t.push && t.push.length ? t.push.join('') : 'ε'}`;
-        edges.push({ data: { id: 'pe' + edgeId++, source: t.from, target: t.to, label: label } });
+        const pushStr = (t.push && t.push.length) ? t.push.join('') : 'ε';
+        const label = `${t.input || 'ε'}, ${t.stack_top} → ${pushStr}`;
+        edges.push({
+            data: {
+                id: 'pe' + (edgeId++),
+                source: t.from,
+                target: t.to,
+                label,
+                input: t.input,
+                stack_top: t.stack_top,
+                push: (t.push || []).join(','),
+            },
+        });
     }
     return { nodes, edges };
 }
 
 function createCy(containerId, elements) {
+    // Prefer dagre (loaded via the cytoscape-dagre CDN in cfg.html); fall back
+    // to cose if it didn't load for any reason.
+    const layout = (typeof cytoscape.use === 'function')
+        ? { name: 'dagre', rankDir: 'LR', nodeSep: 30, rankSep: 60, animate: false }
+        : { name: 'cose', animate: true };
     return cytoscape({
         container: document.getElementById(containerId),
         elements: elements.nodes.concat(elements.edges),
@@ -59,8 +100,9 @@ function createCy(containerId, elements) {
                 'background-color': '#fff',
                 'border-color': '#333',
                 'border-width': 2,
-                'width': 46,
-                'height': 46,
+                'width': 46, 'height': 46,
+                'transition-property': 'background-color, border-color, border-width, width, height',
+                'transition-duration': 180,
             }},
             { selector: 'edge', style: {
                 'label': 'data(label)',
@@ -69,35 +111,90 @@ function createCy(containerId, elements) {
                 'line-color': '#888',
                 'target-arrow-color': '#888',
                 'text-rotation': 'autorotate',
-                'font-size': 10
+                'font-size': 10,
+                'transition-property': 'line-color, target-arrow-color, width',
+                'transition-duration': 150,
             }},
-            { selector: '.active', style: { 'background-color': '#ffe082', 'border-color': '#ffb300' }},
-            { selector: '.valid', style: { 'background-color': '#2e7d32', 'border-color': '#2e7d32', 'line-color': '#2e7d32', 'target-arrow-color': '#2e7d32' }},
-            { selector: '.invalid', style: { 'background-color': '#c62828', 'border-color': '#c62828', 'line-color': '#c62828', 'target-arrow-color': '#c62828' }}
+            { selector: '.active', style: {
+                'background-color': '#ffe082',
+                'border-color': '#ffb300',
+                'border-width': 4,
+            }},
+            { selector: '.pulse', style: {
+                'width': 56, 'height': 56,
+                'border-color': '#ff9800',
+                'border-width': 6,
+            }},
+            { selector: 'edge.traversing', style: {
+                'line-color': '#ff9800',
+                'target-arrow-color': '#ff9800',
+                'line-style': 'dashed',
+                'line-dash-pattern': [8, 4],
+                'width': 4,
+            }},
+            { selector: '.valid', style: {
+                'background-color': '#2e7d32', 'border-color': '#2e7d32',
+                'line-color': '#2e7d32',     'target-arrow-color': '#2e7d32',
+            }},
+            { selector: '.invalid', style: {
+                'background-color': '#c62828', 'border-color': '#c62828',
+                'line-color': '#c62828',     'target-arrow-color': '#c62828',
+            }},
         ],
-        layout: { name: 'cose', animate: true }
+        layout: layout,
     });
 }
 
+function pulseNode(node) {
+    if (!node) return;
+    node.addClass('pulse');
+    setTimeout(() => node.removeClass('pulse'), 280);
+}
+
+/** Edges are built in the same order as `pda.transitions` (id "pe" + index),
+ *  so we can look up the exact edge by the simulator's `applied_idx` — no
+ *  more guessing among the many self-loops on q1. */
+function edgeForTransition(cy, idx) {
+    if (idx === null || idx === undefined) return cy.collection();
+    return cy.getElementById('pe' + idx);
+}
+
+// ----------------------------- Stack rendering ----------------------------- //
+
+/** Re-render the stack panel and flash any boxes that were just pushed or
+ *  popped relative to the previous frame. */
 function renderStack(stack) {
-    // stack is an array where the last element is the top; display top at top visually
-    if (!stack || stack.length === 0) {
+    stack = stack || [];
+    if (stack.length === 0) {
         stackContents.innerHTML = 'Empty Stack';
+        lastStack = [];
         return;
     }
     stackContents.innerHTML = '';
-    // Render from bottom to top but visually show reversed (top first)
-    const reversed = stack.slice().reverse();
+    const reversed = stack.slice().reverse(); // top first visually
     reversed.forEach((sym, idx) => {
         const div = document.createElement('div');
         div.className = 'stack-box';
-        if (idx === 0) div.classList.add('stack-top'); // highlight top
+        if (idx === 0) div.classList.add('stack-top');
         div.textContent = sym;
         stackContents.appendChild(div);
     });
+
+    // Flash the new top if it differs from the previous top.
+    const prevTop = lastStack.length ? lastStack[lastStack.length - 1] : null;
+    const newTop  = stack[stack.length - 1];
+    if (newTop !== prevTop) {
+        const topBox = stackContents.firstChild;
+        if (topBox) {
+            topBox.classList.add(stack.length > lastStack.length ? 'push' : 'pop');
+            setTimeout(() => topBox.classList.remove('push', 'pop'), 500);
+        }
+    }
+    lastStack = stack.slice();
 }
 
-// Convert button builds PDA and renders it
+// ----------------------------- Convert ----------------------------- //
+
 cfgConvertBtn.addEventListener('click', async () => {
     const cfgText = cfgInput.value.trim();
     if (!cfgText) { alert('Please enter CFG rules.'); return; }
@@ -110,7 +207,6 @@ cfgConvertBtn.addEventListener('click', async () => {
     currentPda = pdaResp;
     addCfgStep('PDA constructed.');
 
-    // Render PDA
     const els = buildPdaElements(currentPda);
     if (cyPda) cyPda.destroy();
     cyPda = createCy('cy-pda', els);
@@ -118,7 +214,8 @@ cfgConvertBtn.addEventListener('click', async () => {
     addCfgStep('PDA diagram rendered.');
 });
 
-// Run button: request simulation steps and animate
+// ----------------------------- Run (animate) ----------------------------- //
+
 cfgRunBtn.addEventListener('click', async () => {
     if (!currentPda) { alert('Please convert CFG first.'); return; }
     const s = document.getElementById('cfg-test-input').value || '';
@@ -132,41 +229,62 @@ cfgRunBtn.addEventListener('click', async () => {
     currentSteps = res.steps || [];
     const valid = !!res.valid;
 
-    // Animate steps sequentially
-    const delay = 600;
+    cyPda.elements().removeClass('active traversing valid invalid pulse');
+    lastStack = [];
+    startAnts();
+
+    const delay = 700;
+    let currentActiveId = null;
+
     for (let i = 0; i < currentSteps.length; i++) {
         const step = currentSteps[i];
-        // Highlight state node
-        if (cyPda) cyPda.elements().removeClass('active');
-        const node = cyPda ? cyPda.getElementById(step.state) : null;
-        if (node) node.addClass('active');
 
-        // Update stack view
-        renderStack(step.stack || []);
+        // Edge highlight: clear previous, then light up exactly the edge the
+        // simulator says fired (no guessing among self-loops on q1).
+        cyPda.edges('.traversing').removeClass('traversing');
+        edgeForTransition(cyPda, step.applied_idx).addClass('traversing');
 
-        // Update step viewer with short description
-        addCfgStep(`State: ${step.state}, remaining: "${step.remaining_input}", stack: [${(step.stack||[]).join(',')}]`);
+        // State highlight: only toggle .active when the state actually changes
+        // so we don't get a flicker (white -> yellow) on every q1->q1 step.
+        // Always pulse so the user still sees that "something happened."
+        if (step.state !== currentActiveId) {
+            if (currentActiveId) cyPda.getElementById(currentActiveId).removeClass('active');
+            const node = cyPda.getElementById(step.state);
+            if (node) node.addClass('active');
+            currentActiveId = step.state;
+        }
+        const activeNode = cyPda.getElementById(step.state);
+        if (activeNode) pulseNode(activeNode);
 
-        // wait
-        await new Promise(r => setTimeout(r, delay));
+        // Stack panel + step line.
+        renderStack(step.stack);
+        addCfgStep(`State: ${step.state}, remaining: "${step.remaining_input}", stack: [${(step.stack || []).join(',')}]`);
+
+        await sleep(delay);
     }
 
-    // Final coloring
+    cyPda.edges('.traversing').removeClass('traversing');
+    stopAnts();
+
     if (cyPda) {
         if (valid) cyPda.elements().addClass('valid');
         else cyPda.elements().addClass('invalid');
     }
+    if (res.error) addCfgStep('Warning: ' + res.error);
     addCfgStep(valid ? 'Result: VALID (string accepted)' : 'Result: INVALID (string rejected)');
 });
 
-// Reset clears diagram highlights and stack
+// ----------------------------- Reset ----------------------------- //
+
 cfgResetBtn.addEventListener('click', () => {
-    if (cyPda) cyPda.elements().removeClass('active valid invalid');
+    stopAnts();
+    if (cyPda) cyPda.elements().removeClass('active traversing valid invalid pulse');
     stackContents.innerHTML = 'Empty Stack';
+    lastStack = [];
     clearCfgSteps();
     addCfgStep('Reset complete.');
 });
 
-// Initialize
+// Initial state
 clearCfgSteps();
 addCfgStep('Ready. Enter CFG rules and click Convert.');
