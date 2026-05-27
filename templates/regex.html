@@ -21,8 +21,34 @@
             <label for="regex-input">Regular expression <small style="font-weight:normal;color:#666">— union: <code>|</code>, <code>U</code>, or <code>+</code> &middot; Kleene: <code>*</code> &middot; epsilon: <code>ε</code> or <code>E</code></small></label>
             <input id="regex-input" type="text" placeholder="(a+b)*abb  or  (a|b)*abb" />
 
-            <label for="test-input">Test string</label>
-            <input id="test-input" type="text" placeholder="aabb" />
+            <label>Test your Strings</label>
+            <div id="regex-multi-checker" class="multi-string-checker">
+                <div class="multi-string-row">
+                    <input id="test-input" class="multi-string-input" type="text" placeholder="Input 1" />
+                    <span class="string-result pending">Not Checked</span>
+                    <button type="button" class="simulate-string-btn">Simulate</button>
+                </div>
+                <div class="multi-string-row">
+                    <input class="multi-string-input" type="text" placeholder="Input 2" />
+                    <span class="string-result pending">Not Checked</span>
+                    <button type="button" class="simulate-string-btn">Simulate</button>
+                </div>
+                <div class="multi-string-row">
+                    <input class="multi-string-input" type="text" placeholder="Input 3" />
+                    <span class="string-result pending">Not Checked</span>
+                    <button type="button" class="simulate-string-btn">Simulate</button>
+                </div>
+                <div class="multi-string-row">
+                    <input class="multi-string-input" type="text" placeholder="Input 4" />
+                    <span class="string-result pending">Not Checked</span>
+                    <button type="button" class="simulate-string-btn">Simulate</button>
+                </div>
+                <div class="multi-string-row">
+                    <input class="multi-string-input" type="text" placeholder="Input 5" />
+                    <span class="string-result pending">Not Checked</span>
+                    <button type="button" class="simulate-string-btn">Simulate</button>
+                </div>
+            </div>
 
             <div class="controls">
                 <button id="convert-btn">Convert</button>

@@ -23,6 +23,7 @@ const resetBtn   = document.getElementById('reset-btn');
 const stepsList  = document.getElementById('steps-list');
 const tabButtons = document.querySelectorAll('.tab-btn');
 const charDisplay = document.getElementById('char-display');
+const multiStringRows = document.querySelectorAll('#regex-multi-checker .multi-string-row');
 
 // Persistent Cytoscape instances and the last computed automata.
 let cyNfa = null;
@@ -65,6 +66,51 @@ function flashChar(ch) {
 function activeTabTarget() {
     const btn = document.querySelector('.tab-btn.active');
     return btn ? btn.dataset.target : 'nfa';
+}
+
+function setStringResult(row, valid, value, error) {
+    const result = row.querySelector('.string-result');
+    result.classList.remove('pending', 'accepted', 'rejected');
+    if (error) {
+        result.classList.add('rejected');
+        result.textContent = 'Error';
+        return;
+    }
+    result.classList.add(valid ? 'accepted' : 'rejected');
+    if (value === '') {
+        result.textContent = valid ? 'Null String Accepted' : 'Null String Not Accepted';
+    } else {
+        result.textContent = valid ? 'String Accepted' : 'String Not Accepted';
+    }
+}
+
+function resetStringResults() {
+    multiStringRows.forEach(row => {
+        const result = row.querySelector('.string-result');
+        result.classList.remove('accepted', 'rejected');
+        result.classList.add('pending');
+        result.textContent = 'Not Checked';
+    });
+}
+
+async function checkRegexString(value) {
+    if (activeTabTarget() === 'nfa') {
+        return postJson('/api/regex/nfa/check', { nfa: currentNfa, string: value });
+    }
+    return postJson('/api/regex/check', { dfa: currentDfa, string: value });
+}
+
+async function checkStringRow(row) {
+    if (!currentNfa || (activeTabTarget() === 'dfa' && !currentDfa)) return;
+    const input = row.querySelector('.multi-string-input');
+    const value = input.value || '';
+    const res = await checkRegexString(value);
+    setStringResult(row, !!res.valid, value, res.error);
+}
+
+async function checkAllRegexStrings() {
+    if (!currentNfa || (activeTabTarget() === 'dfa' && !currentDfa)) return;
+    await Promise.all(Array.from(multiStringRows).map(checkStringRow));
 }
 
 // ----------------------------- Marching-ants animation ----------------------------- //
@@ -238,6 +284,24 @@ tabButtons.forEach(btn => {
         // Cytoscape needs a resize() after the container becomes visible.
         if (target === 'nfa' && cyNfa) cyNfa.resize();
         if (target === 'dfa' && cyDfa) cyDfa.resize();
+        checkAllRegexStrings();
+    });
+});
+
+multiStringRows.forEach(row => {
+    const input = row.querySelector('.multi-string-input');
+    const simulateBtn = row.querySelector('.simulate-string-btn');
+    input.addEventListener('input', () => checkStringRow(row));
+    simulateBtn.addEventListener('click', async () => {
+        if (!currentNfa) { alert('Please convert a regex first.'); return; }
+        testInput.value = input.value || '';
+        currentTestString = testInput.value;
+        await checkStringRow(row);
+        if (activeTabTarget() === 'nfa') {
+            await runNfa(currentTestString);
+        } else {
+            await runDfa(currentTestString);
+        }
     });
 });
 
@@ -277,6 +341,7 @@ convertBtn.addEventListener('click', async () => {
         if (node) node.addClass('accept');
     });
 
+    await checkAllRegexStrings();
     addStep('Diagrams rendered. Switch tabs to compare NFA and DFA.');
 });
 
@@ -407,6 +472,7 @@ resetBtn.addEventListener('click', () => {
     if (cyDfa) cyDfa.elements().removeClass('active traversing valid invalid pulse');
     charDisplay.textContent = '-';
     charDisplay.classList.remove('flash');
+    resetStringResults();
     clearSteps();
     addStep('Reset complete.');
 });

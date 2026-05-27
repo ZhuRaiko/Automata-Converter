@@ -18,6 +18,7 @@ const cfgRunBtn    = document.getElementById('cfg-run-btn');
 const cfgResetBtn  = document.getElementById('cfg-reset-btn');
 const cfgStepsList = document.getElementById('cfg-steps-list');
 const stackContents = document.getElementById('stack-contents');
+const cfgMultiStringRows = document.querySelectorAll('#cfg-multi-checker .multi-string-row');
 
 let cyPda = null;
 let currentPda = null;
@@ -41,6 +42,44 @@ function addCfgStep(text) {
     cfgStepsList.appendChild(li);
     // Keep the newest step visible inside the scrollable step viewer.
     cfgStepsList.scrollTop = cfgStepsList.scrollHeight;
+}
+
+function setCfgStringResult(row, valid, value, error) {
+    const result = row.querySelector('.string-result');
+    result.classList.remove('pending', 'accepted', 'rejected');
+    if (error) {
+        result.classList.add('rejected');
+        result.textContent = 'Error';
+        return;
+    }
+    result.classList.add(valid ? 'accepted' : 'rejected');
+    if (value === '') {
+        result.textContent = valid ? 'Null String Accepted' : 'Null String Not Accepted';
+    } else {
+        result.textContent = valid ? 'String Accepted' : 'String Not Accepted';
+    }
+}
+
+function resetCfgStringResults() {
+    cfgMultiStringRows.forEach(row => {
+        const result = row.querySelector('.string-result');
+        result.classList.remove('accepted', 'rejected');
+        result.classList.add('pending');
+        result.textContent = 'Not Checked';
+    });
+}
+
+async function checkCfgStringRow(row) {
+    if (!currentPda) return;
+    const input = row.querySelector('.multi-string-input');
+    const value = input.value || '';
+    const res = await postJson('/api/cfg/check', { pda: currentPda, string: value });
+    setCfgStringResult(row, !!res.valid, value, res.error);
+}
+
+async function checkAllCfgStrings() {
+    if (!currentPda) return;
+    await Promise.all(Array.from(cfgMultiStringRows).map(checkCfgStringRow));
 }
 
 // ----------------------------- Marching ants ----------------------------- //
@@ -119,6 +158,10 @@ function createCy(containerId, elements) {
                 'background-color': '#ffe082',
                 'border-color': '#ffb300',
                 'border-width': 4,
+            }},
+            { selector: '.accept', style: {
+                'border-width': 6,
+                'border-style': 'double',
             }},
             { selector: '.pulse', style: {
                 'width': 56, 'height': 56,
@@ -210,8 +253,13 @@ cfgConvertBtn.addEventListener('click', async () => {
     const els = buildPdaElements(currentPda);
     if (cyPda) cyPda.destroy();
     cyPda = createCy('cy-pda', els);
+    (currentPda.accept_states || []).forEach(s => {
+        const node = cyPda.getElementById(s);
+        if (node) node.addClass('accept');
+    });
 
     addCfgStep('PDA diagram rendered.');
+    await checkAllCfgStrings();
 });
 
 // ----------------------------- Run (animate) ----------------------------- //
@@ -219,7 +267,10 @@ cfgConvertBtn.addEventListener('click', async () => {
 cfgRunBtn.addEventListener('click', async () => {
     if (!currentPda) { alert('Please convert CFG first.'); return; }
     const s = document.getElementById('cfg-test-input').value || '';
+    await runPda(s);
+});
 
+async function runPda(s) {
     clearCfgSteps();
     addCfgStep('Requesting PDA simulation...');
 
@@ -272,6 +323,18 @@ cfgRunBtn.addEventListener('click', async () => {
     }
     if (res.error) addCfgStep('Warning: ' + res.error);
     addCfgStep(valid ? 'Result: VALID (string accepted)' : 'Result: INVALID (string rejected)');
+}
+
+cfgMultiStringRows.forEach(row => {
+    const input = row.querySelector('.multi-string-input');
+    const simulateBtn = row.querySelector('.simulate-string-btn');
+    input.addEventListener('input', () => checkCfgStringRow(row));
+    simulateBtn.addEventListener('click', async () => {
+        if (!currentPda) { alert('Please convert CFG first.'); return; }
+        document.getElementById('cfg-test-input').value = input.value || '';
+        await checkCfgStringRow(row);
+        await runPda(input.value || '');
+    });
 });
 
 // ----------------------------- Reset ----------------------------- //
@@ -281,6 +344,7 @@ cfgResetBtn.addEventListener('click', () => {
     if (cyPda) cyPda.elements().removeClass('active traversing valid invalid pulse');
     stackContents.innerHTML = 'Empty Stack';
     lastStack = [];
+    resetCfgStringResults();
     clearCfgSteps();
     addCfgStep('Reset complete.');
 });

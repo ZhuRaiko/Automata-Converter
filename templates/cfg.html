@@ -21,8 +21,34 @@
             <label for="cfg-input">CFG rules (one per line) <small style="font-weight:normal;color:#666">— arrow: <code>-&gt;</code> or <code>&rarr;</code> &middot; alt: <code>|</code> &middot; epsilon: <code>ε</code> <code>^</code> <code>n</code> <code>null</code> <code>epsilon</code></small></label>
             <textarea id="cfg-input" rows="6" placeholder="S -> aSb | ^&#10;S -> aS | bS | n"></textarea>
 
-            <label for="cfg-test-input">Test string</label>
-            <input id="cfg-test-input" type="text" placeholder="aabb" />
+            <label>Test your Strings</label>
+            <div id="cfg-multi-checker" class="multi-string-checker">
+                <div class="multi-string-row">
+                    <input id="cfg-test-input" class="multi-string-input" type="text" placeholder="Input 1" />
+                    <span class="string-result pending">Not Checked</span>
+                    <button type="button" class="simulate-string-btn">Simulate</button>
+                </div>
+                <div class="multi-string-row">
+                    <input class="multi-string-input" type="text" placeholder="Input 2" />
+                    <span class="string-result pending">Not Checked</span>
+                    <button type="button" class="simulate-string-btn">Simulate</button>
+                </div>
+                <div class="multi-string-row">
+                    <input class="multi-string-input" type="text" placeholder="Input 3" />
+                    <span class="string-result pending">Not Checked</span>
+                    <button type="button" class="simulate-string-btn">Simulate</button>
+                </div>
+                <div class="multi-string-row">
+                    <input class="multi-string-input" type="text" placeholder="Input 4" />
+                    <span class="string-result pending">Not Checked</span>
+                    <button type="button" class="simulate-string-btn">Simulate</button>
+                </div>
+                <div class="multi-string-row">
+                    <input class="multi-string-input" type="text" placeholder="Input 5" />
+                    <span class="string-result pending">Not Checked</span>
+                    <button type="button" class="simulate-string-btn">Simulate</button>
+                </div>
+            </div>
 
             <div class="controls">
                 <button id="cfg-convert-btn">Convert</button>

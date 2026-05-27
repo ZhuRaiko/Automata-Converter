@@ -44,10 +44,11 @@ operator.
 
 ### Walkthrough — `(a+b)*abb` on `aabb`
 
-1. Type the regex and test string.
+1. Type the regex and one or more test strings.
 2. Click **Convert**. Both diagrams render.
-3. Switch tabs to compare. DFA should be 4 states.
-4. Click **Run** on the DFA tab. The active state pulses; the traversed
+3. Switch tabs to compare. DFA should be 4 states. Each test row shows
+   whether that string is accepted for the currently selected tab.
+4. Click **Run** or a row's **Simulate** button on the DFA tab. The active state pulses; the traversed
    edge marches; the consumed char flashes. End: everything green.
 5. Reset, change test to `abba`, Run. Ends red — regex requires the
    string to end in `abb`.
@@ -86,10 +87,11 @@ terminal.
 
 ### Walkthrough — `S -> aSb | ε` on `aabb`
 
-1. Type the grammar and test string.
+1. Type the grammar and one or more test strings.
 2. Click **Convert**. Three states (`q0`, `q1`, `q2`) appear with several
-   self-loops on `q1`. Stack panel: "Empty Stack".
-3. Click **Run**. Frame 0 sits at `q0` (stack `[Z]`); frame 1 transitions
+   self-loops on `q1`. Stack panel: "Empty Stack". Each test row shows
+   whether that string is accepted by the PDA.
+3. Click **Run** or a row's **Simulate** button. Frame 0 sits at `q0` (stack `[Z]`); frame 1 transitions
    to `q1` with the start symbol pushed. Stack top flashes **green on
    push**, **red on pop**. Around step 5 the stack looks like
    `[Z, b, b, S]` (top is `S`, at the visual top). The animation finishes

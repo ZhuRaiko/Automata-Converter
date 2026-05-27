@@ -61,6 +61,64 @@ input[type="text"], textarea {
     box-sizing: border-box;
 }
 
+.multi-string-checker {
+    display: grid;
+    gap: 8px;
+}
+
+.multi-string-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 132px 96px;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.multi-string-row input[type="text"] {
+    margin: 0;
+}
+
+.string-result {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 4px 10px;
+    border: 1px solid #dbe2ee;
+    border-radius: 8px;
+    background: #f4f7fb;
+    color: #67758a;
+    font-size: 0.82em;
+    font-weight: 700;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.string-result.accepted {
+    border-color: #b5ebc7;
+    background: #e6f8ed;
+    color: #238a49;
+}
+
+.string-result.rejected {
+    border-color: #ffc4bf;
+    background: #ffe8e5;
+    color: #d13f35;
+}
+
+.simulate-string-btn {
+    margin-right: 0;
+    border: 1px solid #dbe2ee;
+    background: #f7f9fc;
+    color: #4d5d73;
+    font-weight: 700;
+}
+
+@media (max-width: 700px) {
+    .multi-string-row {
+        grid-template-columns: 1fr;
+    }
+}
+
 .controls {
     margin-top: 10px;
 }
