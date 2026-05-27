@@ -17,7 +17,8 @@ Builds an NFA from a regular expression (Thompson's construction), converts
 it to a minimal DFA (subset construction + Hopcroft minimization), and
 animates string acceptance on either machine. Builds a top-down PDA from a
 context-free grammar and animates an LL(1)-style derivation with a live
-stack panel. Pure Python + vanilla JS + Cytoscape.js — no build step.
+stack panel. The UI can check multiple strings and simulate any selected
+row. Pure Python + vanilla JS + Cytoscape.js — no build step.
 
 ## 1. Background
 
@@ -92,6 +93,8 @@ Full algorithm reference: [`algorithms.md`](./algorithms.md).
 ## 4. User Manual (summary)
 
 Two pages, same three-area layout (input, diagram, scrolling step viewer).
+Both pages include five test-string rows with accepted/rejected status and
+a **Simulate** button.
 
 - **`/regex`** — accepts union `|`, `U`, `+`; Kleene `*`; epsilon `ε`, `E`.
   Click Convert, then Run on the active tab.
@@ -114,7 +117,7 @@ Full walkthroughs: [`user_manual.md`](./user_manual.md).
 | 4 | `/regex` | DFA tab, click Run, wait for finish | All elements green | `fig04_accept.png` |
 | 5 | `/regex` | Reset, test `abba`, click Run | Red rejection | `fig05_reject.png` |
 | 6 | `/regex` | NFA tab, click Run, pause mid-animation | One yellow state, one orange marching edge | `fig06_nfa_run.png` |
-| 7 | `/cfg` | `S -> aSb \| ε`, test `aabb`, click Convert | PDA + empty stack panel | `fig07_pda.png` |
+| 7 | `/cfg` | `S -> aSb \| ε`, test `aabb`, click Convert | PDA + empty stack panel; q2 final | `fig07_pda.png` |
 | 8 | `/cfg` | Click Run, pause around step 5 | Multi-symbol stack, marching edge | `fig08_pda_running.png` |
 | 9 | `/cfg` | Let it finish | Green accept, stack = `[Z]`, q2 active | `fig09_pda_accept.png` |
 | 10 | `/cfg` | `S -> aS \| bS \| n` on `aa` | Accept — `n` recognized as ε | `fig10_n_epsilon.png` |
