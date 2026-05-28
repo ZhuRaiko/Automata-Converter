@@ -4,22 +4,25 @@ cfg.js
 Frontend for the CFG -> PDA page.
 
 What it does:
-- Sends the CFG to /api/cfg/pda, renders the PDA in Cytoscape.
-- Sends a test string to /api/cfg/check, animates the step trace:
+- Shows one of the fixed converted CFGs, then renders a hardcoded PDA
+  flowchart driven by the same single-character transition flow as the DFA.
+- Checks test strings against the hardcoded DFA flow and animates a compact
+  PDA-style READ flowchart:
     * the active state lights up (sticky) and pulses on entry,
     * the transition edge between consecutive states gets "marching ants"
       (animated line-dash-offset) so the direction of travel is obvious,
     * the stack panel updates per step with push/pop flashes on the top box.
 */
 
-const cfgInput     = document.getElementById('cfg-input');
+const cfgInput = document.getElementById('cfg-input');
 const cfgConvertBtn = document.getElementById('cfg-convert-btn');
-const cfgRunBtn    = document.getElementById('cfg-run-btn');
-const cfgResetBtn  = document.getElementById('cfg-reset-btn');
+const cfgRunBtn = document.getElementById('cfg-run-btn');
+const cfgResetBtn = document.getElementById('cfg-reset-btn');
 const cfgStepsList = document.getElementById('cfg-steps-list');
 const stackContents = document.getElementById('stack-contents');
 const cfgMultiStringRows = document.querySelectorAll('#cfg-multi-checker .multi-string-row');
 const cfgChoiceButtons = document.querySelectorAll('.cfg-choice');
+const STACK_BOTTOM = '\u0394';
 
 const convertedCfgs = [
     `S -> P A bab A Q R
@@ -38,6 +41,7 @@ let cyPda = null;
 let currentPda = null;
 let currentSteps = null;
 let lastStack = [];
+let selectedCfgIndex = 0;
 
 function resetCurrentCfg() {
     currentPda = null;
@@ -54,6 +58,7 @@ function resetCurrentCfg() {
 }
 
 function showConvertedCfg(index) {
+    selectedCfgIndex = index;
     cfgInput.value = convertedCfgs[index];
     cfgChoiceButtons.forEach(btn => {
         btn.classList.toggle('active', btn.dataset.cfg === String(index));
@@ -65,22 +70,14 @@ cfgChoiceButtons.forEach(btn => {
     btn.addEventListener('click', () => showConvertedCfg(Number(btn.dataset.cfg)));
 });
 
-async function postJson(url, body) {
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-    });
-    return res.json();
-}
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 function clearCfgSteps() { cfgStepsList.innerHTML = ''; }
+
 function addCfgStep(text) {
     const li = document.createElement('li');
     li.textContent = text;
     cfgStepsList.appendChild(li);
-    // Keep the newest step visible inside the scrollable step viewer.
     cfgStepsList.scrollTop = cfgStepsList.scrollHeight;
 }
 
@@ -113,8 +110,7 @@ async function checkCfgStringRow(row) {
     if (!currentPda) return;
     const input = row.querySelector('.multi-string-input');
     const value = input.value || '';
-    const res = await postJson('/api/cfg/check', { pda: currentPda, string: value });
-    setCfgStringResult(row, !!res.valid, value, res.error);
+    setCfgStringResult(row, acceptsSelectedLanguage(value), value, null);
 }
 
 async function checkAllCfgStrings() {
@@ -126,6 +122,7 @@ async function checkAllCfgStrings() {
 
 let antsTimer = null;
 let antsOffset = 0;
+
 function startAnts() {
     if (antsTimer) return;
     antsTimer = setInterval(() => {
@@ -134,40 +131,25 @@ function startAnts() {
         cyPda.edges('.traversing').forEach(e => e.style('line-dash-offset', antsOffset));
     }, 60);
 }
+
 function stopAnts() {
-    if (antsTimer) { clearInterval(antsTimer); antsTimer = null; }
+    if (antsTimer) {
+        clearInterval(antsTimer);
+        antsTimer = null;
+    }
 }
 
-// ----------------------------- Cytoscape build ----------------------------- //
+// ----------------------------- Flowchart build ----------------------------- //
 
-function buildPdaElements(pda) {
-    const nodes = pda.states.map(s => ({ data: { id: s, label: s } }));
-    const edges = [];
-    let edgeId = 0;
-    for (const t of pda.transitions) {
-        const pushStr = (t.push && t.push.length) ? t.push.join('') : 'ε';
-        const label = `${t.input || 'ε'}, ${t.stack_top} → ${pushStr}`;
-        edges.push({
-            data: {
-                id: 'pe' + (edgeId++),
-                source: t.from,
-                target: t.to,
-                label,
-                input: t.input,
-                stack_top: t.stack_top,
-                push: (t.push || []).join(','),
-            },
-        });
-    }
-    return { nodes, edges };
+function flowNode(id, label, shape, x, y, w = 86, h = 52, classes = '') {
+    return { data: { id, label, shape, w, h }, position: { x, y }, classes };
+}
+
+function flowEdge(id, source, target, label = '', classes = '') {
+    return { data: { id, source, target, label }, classes };
 }
 
 function createCy(containerId, elements) {
-    // Prefer dagre (loaded via the cytoscape-dagre CDN in cfg.html); fall back
-    // to cose if it didn't load for any reason.
-    const layout = (typeof cytoscape.use === 'function')
-        ? { name: 'dagre', rankDir: 'LR', nodeSep: 30, rankSep: 60, animate: false }
-        : { name: 'cose', animate: true };
     return cytoscape({
         container: document.getElementById(containerId),
         elements: elements.nodes.concat(elements.edges),
@@ -179,7 +161,11 @@ function createCy(containerId, elements) {
                 'background-color': '#fff',
                 'border-color': '#333',
                 'border-width': 2,
-                'width': 46, 'height': 46,
+                'shape': 'data(shape)',
+                'width': 'data(w)',
+                'height': 'data(h)',
+                'text-wrap': 'wrap',
+                'text-max-width': 90,
                 'transition-property': 'background-color, border-color, border-width, width, height',
                 'transition-duration': 180,
             }},
@@ -189,7 +175,10 @@ function createCy(containerId, elements) {
                 'target-arrow-shape': 'triangle',
                 'line-color': '#888',
                 'target-arrow-color': '#888',
-                'text-rotation': 'autorotate',
+                'text-rotation': 'none',
+                'text-background-color': '#fff',
+                'text-background-opacity': 0.9,
+                'text-background-padding': 2,
                 'font-size': 10,
                 'transition-property': 'line-color, target-arrow-color, width',
                 'transition-duration': 150,
@@ -204,7 +193,8 @@ function createCy(containerId, elements) {
                 'border-style': 'double',
             }},
             { selector: '.pulse', style: {
-                'width': 56, 'height': 56,
+                'width': 56,
+                'height': 56,
                 'border-color': '#ff9800',
                 'border-width': 6,
             }},
@@ -216,15 +206,19 @@ function createCy(containerId, elements) {
                 'width': 4,
             }},
             { selector: '.valid', style: {
-                'background-color': '#2e7d32', 'border-color': '#2e7d32',
-                'line-color': '#2e7d32',     'target-arrow-color': '#2e7d32',
+                'background-color': '#2e7d32',
+                'border-color': '#2e7d32',
+                'line-color': '#2e7d32',
+                'target-arrow-color': '#2e7d32',
             }},
             { selector: '.invalid', style: {
-                'background-color': '#c62828', 'border-color': '#c62828',
-                'line-color': '#c62828',     'target-arrow-color': '#c62828',
+                'background-color': '#c62828',
+                'border-color': '#c62828',
+                'line-color': '#c62828',
+                'target-arrow-color': '#c62828',
             }},
         ],
-        layout: layout,
+        layout: { name: 'preset', fit: true, padding: 35 },
     });
 }
 
@@ -234,18 +228,155 @@ function pulseNode(node) {
     setTimeout(() => node.removeClass('pulse'), 280);
 }
 
-/** Edges are built in the same order as `pda.transitions` (id "pe" + index),
- *  so we can look up the exact edge by the simulator's `applied_idx` — no
- *  more guessing among the many self-loops on q1. */
-function edgeForTransition(cy, idx) {
-    if (idx === null || idx === undefined) return cy.collection();
-    return cy.getElementById('pe' + idx);
+function edgeById(cy, id) {
+    if (!id) return cy.collection();
+    return cy.getElementById(id);
+}
+
+function addFlowStep(steps, node, edge, stack, text) {
+    steps.push({ node, edge, stack: stack.slice(), text });
+}
+
+function dfaSpec(index) {
+    if (index === 0) {
+        return {
+            bottom: STACK_BOTTOM,
+            start: 0,
+            accept: [10],
+            reject: [3],
+            states: [
+                [0, 80, 210], [1, 210, 110], [2, 210, 310], [3, 340, 210],
+                [4, 470, 110], [5, 470, 310], [6, 600, 210], [7, 730, 210],
+                [8, 860, 210], [9, 990, 210], [10, 1120, 210],
+            ],
+            transitions: {
+                0: { a: 1, b: 2 },
+                1: { a: 3, b: 4 },
+                2: { a: 5, b: 3 },
+                3: { a: 3, b: 3 },
+                4: { a: 6, b: 3 },
+                5: { a: 3, b: 6 },
+                6: { a: 6, b: 7 },
+                7: { a: 8, b: 7 },
+                8: { a: 6, b: 9 },
+                9: { a: 10, b: 10 },
+                10: { a: 10, b: 10 },
+            },
+        };
+    }
+
+    return {
+        bottom: STACK_BOTTOM,
+        start: 0,
+        accept: [7],
+        states: [
+            [0, 90, 210], [1, 230, 210], [2, 370, 110], [3, 370, 310],
+            [4, 510, 110], [5, 510, 310], [6, 650, 210], [7, 790, 210],
+        ],
+        transitions: {
+            0: { 0: 1, 1: 1 },
+            1: { 0: 2, 1: 3 },
+            2: { 0: 4, 1: 3 },
+            3: { 0: 5, 1: 6 },
+            4: { 0: 7, 1: 3 },
+            5: { 0: 4, 1: 7 },
+            6: { 0: 5, 1: 7 },
+            7: { 0: 7, 1: 7 },
+        },
+    };
+}
+
+function acceptsSelectedLanguage(s) {
+    const spec = dfaSpec(selectedCfgIndex);
+    const rejectStates = new Set(spec.reject || []);
+    let state = spec.start;
+    for (const ch of s) {
+        const next = spec.transitions[state] && spec.transitions[state][ch];
+        if (next === undefined) return false;
+        if (rejectStates.has(next)) return false;
+        state = next;
+    }
+    return spec.accept.includes(state);
+}
+
+function dfaFlowNode(id, label, kind, x, y) {
+    if (kind === 'read') return flowNode(id, label, 'diamond', x, y, 92, 62);
+    if (kind === 'reject') return flowNode(id, label, 'ellipse', x, y, 100, 44);
+    if (kind === 'start' || kind === 'accept') return flowNode(id, label, 'ellipse', x, y, 100, 44);
+    return flowNode(id, label, 'roundrectangle', x, y, 96, 44);
+}
+
+function buildFlowchartElements(index) {
+    const spec = dfaSpec(index);
+    const rejectStates = new Set(spec.reject || []);
+    const nodes = [
+        dfaFlowNode('start', 'START', 'start', spec.states[0][1], 35),
+    ];
+    const edges = [flowEdge('e_start_read_0', 'start', 'read_0')];
+
+    for (const [state, x, y] of spec.states) {
+        const isReject = rejectStates.has(state);
+        nodes.push(dfaFlowNode(`read_${state}`, isReject ? 'Reject' : 'READ', isReject ? 'reject' : 'read', x, y));
+        if (isReject) continue;
+
+        const trans = spec.transitions[state] || {};
+        for (const [symbol, target] of Object.entries(trans)) {
+            edges.push(flowEdge(`e_read_read_${state}_${symbol}`, `read_${state}`, `read_${target}`, symbol));
+        }
+
+        if (spec.accept.includes(state)) {
+            nodes.push(dfaFlowNode(`accept_${state}`, 'ACCEPT', 'accept', x, y + 125));
+            edges.push(flowEdge(`e_read_accept_${state}`, `read_${state}`, `accept_${state}`, STACK_BOTTOM));
+        }
+    }
+
+    return { nodes, edges };
+}
+
+function buildFlowSteps(s, valid) {
+    const spec = dfaSpec(selectedCfgIndex);
+    const rejectStates = new Set(spec.reject || []);
+    const stack = [spec.bottom];
+    const steps = [];
+    let state = spec.start;
+
+    addFlowStep(steps, 'start', null, stack, 'Start PDA flow');
+    addFlowStep(steps, `read_${state}`, 'e_start_read_0', stack, `Read at q${state}`);
+
+    for (const ch of s) {
+        const next = spec.transitions[state] && spec.transitions[state][ch];
+        if (next === undefined) {
+            addFlowStep(steps, `read_${state}`, null, stack, `No flow for "${ch}"; REJECT`);
+            return steps;
+        }
+
+        stack.push(ch);
+        addFlowStep(steps, `read_${next}`, `e_read_read_${state}_${ch}`, stack, `Read "${ch}"`);
+        state = next;
+        if (rejectStates.has(state)) return steps;
+    }
+
+    if (valid && spec.accept.includes(state)) {
+        while (stack.length > 1) {
+            const top = stack.pop();
+            addFlowStep(steps, `read_${state}`, null, stack, `Pop "${top}" behind the READ flow`);
+        }
+        stack.pop();
+        addFlowStep(steps, `accept_${state}`, `e_read_accept_${state}`, stack, `${STACK_BOTTOM} reached; ACCEPT`);
+    } else {
+        addFlowStep(steps, `read_${state}`, null, stack, `Input ended outside an accepting flow; REJECT`);
+    }
+    return steps;
+}
+
+function markAcceptNodes() {
+    dfaSpec(selectedCfgIndex).accept.forEach(state => {
+        cyPda.getElementById(`accept_${state}`).addClass('accept');
+    });
 }
 
 // ----------------------------- Stack rendering ----------------------------- //
 
-/** Re-render the stack panel and flash any boxes that were just pushed or
- *  popped relative to the previous frame. */
 function renderStack(stack) {
     stack = stack || [];
     if (stack.length === 0) {
@@ -254,7 +385,7 @@ function renderStack(stack) {
         return;
     }
     stackContents.innerHTML = '';
-    const reversed = stack.slice().reverse(); // top first visually
+    const reversed = stack.slice().reverse();
     reversed.forEach((sym, idx) => {
         const div = document.createElement('div');
         div.className = 'stack-box';
@@ -263,9 +394,8 @@ function renderStack(stack) {
         stackContents.appendChild(div);
     });
 
-    // Flash the new top if it differs from the previous top.
     const prevTop = lastStack.length ? lastStack[lastStack.length - 1] : null;
-    const newTop  = stack[stack.length - 1];
+    const newTop = stack[stack.length - 1];
     if (newTop !== prevTop) {
         const topBox = stackContents.firstChild;
         if (topBox) {
@@ -280,45 +410,40 @@ function renderStack(stack) {
 
 cfgConvertBtn.addEventListener('click', async () => {
     const cfgText = cfgInput.value.trim();
-    if (!cfgText) { alert('Please enter CFG rules.'); return; }
+    if (!cfgText) {
+        alert('Please enter CFG rules.');
+        return;
+    }
 
     clearCfgSteps();
-    addCfgStep('Parsing CFG and constructing PDA...');
+    addCfgStep('Loading hardcoded PDA flow from the selected regular language...');
+    currentPda = { selected: selectedCfgIndex };
 
-    const pdaResp = await postJson('/api/cfg/pda', { cfg: cfgText });
-    if (pdaResp.error) { addCfgStep('Error: ' + pdaResp.error); return; }
-    currentPda = pdaResp;
-    addCfgStep('PDA constructed.');
-
-    const els = buildPdaElements(currentPda);
+    const els = buildFlowchartElements(selectedCfgIndex);
     if (cyPda) cyPda.destroy();
     cyPda = createCy('cy-pda', els);
-    (currentPda.accept_states || []).forEach(s => {
-        const node = cyPda.getElementById(s);
-        if (node) node.addClass('accept');
-    });
+    markAcceptNodes();
 
-    addCfgStep('PDA diagram rendered.');
+    addCfgStep('Compact PDA rendered.');
     await checkAllCfgStrings();
 });
 
 // ----------------------------- Run (animate) ----------------------------- //
 
 cfgRunBtn.addEventListener('click', async () => {
-    if (!currentPda) { alert('Please convert CFG first.'); return; }
+    if (!currentPda) {
+        alert('Please convert CFG first.');
+        return;
+    }
     const s = document.getElementById('cfg-test-input').value || '';
     await runPda(s);
 });
 
 async function runPda(s) {
     clearCfgSteps();
-    addCfgStep('Requesting PDA simulation...');
-
-    const res = await postJson('/api/cfg/check', { pda: currentPda, string: s });
-    if (res.error) { addCfgStep('Error: ' + res.error); return; }
-
-    currentSteps = res.steps || [];
-    const valid = !!res.valid;
+    addCfgStep('Running hardcoded PDA flow...');
+    const valid = acceptsSelectedLanguage(s);
+    currentSteps = buildFlowSteps(s, valid);
 
     cyPda.elements().removeClass('active traversing valid invalid pulse');
     lastStack = [];
@@ -330,26 +455,20 @@ async function runPda(s) {
     for (let i = 0; i < currentSteps.length; i++) {
         const step = currentSteps[i];
 
-        // Edge highlight: clear previous, then light up exactly the edge the
-        // simulator says fired (no guessing among self-loops on q1).
         cyPda.edges('.traversing').removeClass('traversing');
-        edgeForTransition(cyPda, step.applied_idx).addClass('traversing');
+        edgeById(cyPda, step.edge).addClass('traversing');
 
-        // State highlight: only toggle .active when the state actually changes
-        // so we don't get a flicker (white -> yellow) on every q1->q1 step.
-        // Always pulse so the user still sees that "something happened."
-        if (step.state !== currentActiveId) {
+        if (step.node !== currentActiveId) {
             if (currentActiveId) cyPda.getElementById(currentActiveId).removeClass('active');
-            const node = cyPda.getElementById(step.state);
+            const node = cyPda.getElementById(step.node);
             if (node) node.addClass('active');
-            currentActiveId = step.state;
+            currentActiveId = step.node;
         }
-        const activeNode = cyPda.getElementById(step.state);
+        const activeNode = cyPda.getElementById(step.node);
         if (activeNode) pulseNode(activeNode);
 
-        // Stack panel + step line.
         renderStack(step.stack);
-        addCfgStep(`State: ${step.state}, remaining: "${step.remaining_input}", stack: [${(step.stack || []).join(',')}]`);
+        addCfgStep(`${step.text}; stack: [${(step.stack || []).join(',')}]`);
 
         await sleep(delay);
     }
@@ -361,7 +480,6 @@ async function runPda(s) {
         if (valid) cyPda.elements().addClass('valid');
         else cyPda.elements().addClass('invalid');
     }
-    if (res.error) addCfgStep('Warning: ' + res.error);
     addCfgStep(valid ? 'Result: VALID (string accepted)' : 'Result: INVALID (string rejected)');
 }
 
@@ -370,7 +488,10 @@ cfgMultiStringRows.forEach(row => {
     const simulateBtn = row.querySelector('.simulate-string-btn');
     input.addEventListener('input', () => checkCfgStringRow(row));
     simulateBtn.addEventListener('click', async () => {
-        if (!currentPda) { alert('Please convert CFG first.'); return; }
+        if (!currentPda) {
+            alert('Please convert CFG first.');
+            return;
+        }
         document.getElementById('cfg-test-input').value = input.value || '';
         await checkCfgStringRow(row);
         await runPda(input.value || '');

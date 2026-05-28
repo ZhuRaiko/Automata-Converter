@@ -18,11 +18,12 @@
 
         <section id="input-panel" class="panel">
             <h2>Input</h2>
-            <label for="regex-input">Regular expression</label>
-            <select id="regex-input">
-                <option value="(aba+bab)(a+b)*(bab)(a+b)*(a+b+ab+ba)(a+b+aa)*">(aba+bab) (a+b)* (bab) (a+b)* (a+b+ab+ba) (a+b+aa)*</option>
-                <option value="((101+111+101)+(1+0+11))(1+0+01)*(111+000+101)(1+0)*">((101+111+101)+(1+0+11))(1+0+01)*(111+000+101)(1+0)*</option>
-            </select>
+            <label>Regular expression</label>
+            <div id="regex-switcher" class="cfg-switcher regex-switcher">
+                <button type="button" class="cfg-choice regex-choice active" data-regex="0">(aba+bab) (a+b)* (bab) (a+b)* (a+b+ab+ba) (a+b+aa)*</button>
+                <button type="button" class="cfg-choice regex-choice" data-regex="1">((101+111+101)+(1+0+11))(1+0+01)*(111+000+101)(1+0)*</button>
+            </div>
+            <input id="regex-input" type="hidden" value="(aba+bab)(a+b)*(bab)(a+b)*(a+b+ab+ba)(a+b+aa)*" />
 
             <label>Test your Strings</label>
             <div id="regex-multi-checker" class="multi-string-checker">

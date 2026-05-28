@@ -3,6 +3,29 @@
 .diagram { display: none; }
 .diagram.active { display: block; }
 
+.regex-switcher {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.regex-choice {
+    min-height: 44px;
+    margin: 0;
+    border: 1px solid #dbe2ee;
+    background: #f7f9fc;
+    color: #4d5d73;
+    font-weight: 700;
+    text-align: left;
+}
+
+.regex-choice.active {
+    border-color: #1976d2;
+    background: #1976d2;
+    color: #fff;
+}
+
 /* Current-character indicator. Sits above the diagram tabs so it's visible
    for both NFA and DFA traversals. The span flashes when a new character is
    consumed (see .flash keyframes below). */
@@ -41,6 +64,10 @@
 
 /* Small responsive tweak */
 @media (max-width: 700px) {
+    .regex-switcher {
+        grid-template-columns: 1fr;
+    }
+
     .horizontal { flex-direction: column; }
     #stack-panel { width: 100%; }
 }

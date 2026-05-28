@@ -21,12 +21,19 @@ const resetBtn   = document.getElementById('reset-btn');
 const stepsList  = document.getElementById('steps-list');
 const charDisplay = document.getElementById('char-display');
 const multiStringRows = document.querySelectorAll('#regex-multi-checker .multi-string-row');
+const regexChoiceButtons = document.querySelectorAll('.regex-choice');
+
+const fixedRegexes = [
+    '(aba+bab)(a+b)*(bab)(a+b)*(a+b+ab+ba)(a+b+aa)*',
+    '((101+111+101)+(1+0+11))(1+0+01)*(111+000+101)(1+0)*',
+];
 
 // Persistent Cytoscape instances and the last computed automata.
 let cyDfa = null;
 let currentNfa = null;
 let currentDfa = null;
 let currentTestString = '';
+let selectedRegexIndex = 0;
 
 // ----------------------------- Utilities ----------------------------- //
 
@@ -47,6 +54,29 @@ async function postJson(url, body) {
     return res.json();
 }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function showFixedRegex(index) {
+    selectedRegexIndex = index;
+    regexInput.value = fixedRegexes[index];
+    regexChoiceButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.regex === String(index));
+    });
+    currentNfa = null;
+    currentDfa = null;
+    if (cyDfa) {
+        cyDfa.destroy();
+        cyDfa = null;
+    }
+    charDisplay.textContent = '-';
+    charDisplay.classList.remove('flash');
+    resetStringResults();
+    clearSteps();
+    addStep('Ready. Choose a regex and click Convert.');
+}
+
+regexChoiceButtons.forEach(btn => {
+    btn.addEventListener('click', () => showFixedRegex(Number(btn.dataset.regex)));
+});
 
 /** Flash the current-character indicator. Removing+re-adding the class with
  *  a forced reflow restarts the keyframe animation each time. */
@@ -365,4 +395,4 @@ resetBtn.addEventListener('click', () => {
 
 // ----------------------------- Init ----------------------------- //
 clearSteps();
-addStep('Ready. Choose a regex and click Convert.');
+showFixedRegex(selectedRegexIndex);
