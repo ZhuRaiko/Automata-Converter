@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Regex → NFA / DFA</title>
+    <title>Regex → DFA</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/regex.css">
 </head>
@@ -12,14 +12,17 @@
     <!-- Input Panel -->
     <div class="page">
         <header>
-            <h1>Regex → NFA / DFA</h1>
+            <h1>Regex → DFA</h1>
             <nav><a href="/">Home</a> • <a href="/cfg">CFG → PDA</a></nav>
         </header>
 
         <section id="input-panel" class="panel">
             <h2>Input</h2>
-            <label for="regex-input">Regular expression <small style="font-weight:normal;color:#666">— union: <code>|</code>, <code>U</code>, or <code>+</code> &middot; Kleene: <code>*</code> &middot; epsilon: <code>ε</code> or <code>E</code></small></label>
-            <input id="regex-input" type="text" placeholder="(a+b)*abb  or  (a|b)*abb" />
+            <label for="regex-input">Regular expression</label>
+            <select id="regex-input">
+                <option value="(aba+bab)(a+b)*(bab)(a+b)*(a+b+ab+ba)(a+b+aa)*">(aba+bab) (a+b)* (bab) (a+b)* (a+b+ab+ba) (a+b+aa)*</option>
+                <option value="((101+111+101)+(1+0+11))(1+0+01)*(111+000+101)(1+0)*">((101+111+101)+(1+0+11))(1+0+01)*(111+000+101)(1+0)*</option>
+            </select>
 
             <label>Test your Strings</label>
             <div id="regex-multi-checker" class="multi-string-checker">
@@ -57,26 +60,15 @@
             </div>
         </section>
 
-        <!-- Diagram Panel with NFA / DFA tabs -->
+        <!-- Diagram Panel -->
         <section id="diagram-panel" class="panel">
-            <div class="tabs">
-                <button class="tab-btn active" data-target="nfa">NFA</button>
-                <button class="tab-btn" data-target="dfa">DFA</button>
-            </div>
-
-            <!-- Current character indicator (shared between NFA and DFA tabs) -->
+            <h2>DFA Output</h2>
             <div id="current-char" class="current-char">Current char: <span id="char-display">-</span></div>
 
-            <div id="nfa" class="diagram active">
-                <!-- Cytoscape container for NFA -->
-                <div id="cy-nfa" class="cytoscape-container"></div>
-            </div>
-
-            <div id="dfa" class="diagram">
+            <div id="dfa" class="diagram active">
                 <!-- Cytoscape container for DFA -->
                 <div id="cy-dfa" class="cytoscape-container"></div>
             </div>
-            <div id="current-char" class="current-char">Current char: <span id="char-display">-</span></div>
         </section>
 
         <!-- Step Viewer placed BELOW the diagram so a long step list scrolls

@@ -52,13 +52,14 @@ label {
     margin: 8px 0 4px 0;
 }
 
-input[type="text"], textarea {
+input[type="text"], textarea, select {
     display: block;
     width: 100%;
     padding: 8px;
     border: 1px solid #ccc;
     border-radius: 4px;
     box-sizing: border-box;
+    background: #fff;
 }
 
 .multi-string-checker {

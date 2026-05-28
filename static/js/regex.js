@@ -1,14 +1,12 @@
 /*
 regex.js
 
-Frontend for the Regex -> NFA/DFA page.
+Frontend for the Regex -> DFA page.
 
 What it does:
-- Sends the regex to the backend, builds the NFA + minimized DFA, renders both
-  in Cytoscape, and animates traversals.
-- The "Run" button now respects whichever tab is currently active: NFA tab
-  -> backend NFA simulator + active-set animation; DFA tab -> backend DFA
-  checker + single-path animation.
+- Sends one of the fixed regex presets to the backend, builds an internal NFA,
+  converts it to a minimized DFA, renders the DFA in Cytoscape, and animates
+  DFA traversals.
 - Active edges get a marching-ants effect (animated line-dash-offset) so the
   user can see the direction of travel. The consumed character flashes in the
   shared "Current char" indicator.
@@ -21,12 +19,10 @@ const convertBtn = document.getElementById('convert-btn');
 const runBtn     = document.getElementById('run-btn');
 const resetBtn   = document.getElementById('reset-btn');
 const stepsList  = document.getElementById('steps-list');
-const tabButtons = document.querySelectorAll('.tab-btn');
 const charDisplay = document.getElementById('char-display');
 const multiStringRows = document.querySelectorAll('#regex-multi-checker .multi-string-row');
 
 // Persistent Cytoscape instances and the last computed automata.
-let cyNfa = null;
 let cyDfa = null;
 let currentNfa = null;
 let currentDfa = null;
@@ -62,12 +58,6 @@ function flashChar(ch) {
     charDisplay.classList.add('flash');
 }
 
-/** Which automaton diagram is the user currently looking at? */
-function activeTabTarget() {
-    const btn = document.querySelector('.tab-btn.active');
-    return btn ? btn.dataset.target : 'nfa';
-}
-
 function setStringResult(row, valid, value, error) {
     const result = row.querySelector('.string-result');
     result.classList.remove('pending', 'accepted', 'rejected');
@@ -94,14 +84,11 @@ function resetStringResults() {
 }
 
 async function checkRegexString(value) {
-    if (activeTabTarget() === 'nfa') {
-        return postJson('/api/regex/nfa/check', { nfa: currentNfa, string: value });
-    }
     return postJson('/api/regex/check', { dfa: currentDfa, string: value });
 }
 
 async function checkStringRow(row) {
-    if (!currentNfa || (activeTabTarget() === 'dfa' && !currentDfa)) return;
+    if (!currentDfa) return;
     const input = row.querySelector('.multi-string-input');
     const value = input.value || '';
     const res = await checkRegexString(value);
@@ -109,7 +96,7 @@ async function checkStringRow(row) {
 }
 
 async function checkAllRegexStrings() {
-    if (!currentNfa || (activeTabTarget() === 'dfa' && !currentDfa)) return;
+    if (!currentDfa) return;
     await Promise.all(Array.from(multiStringRows).map(checkStringRow));
 }
 
@@ -123,7 +110,7 @@ function startAnts() {
     if (antsTimer) return;
     antsTimer = setInterval(() => {
         antsOffset = (antsOffset - 3) % 1000;
-        const cy = activeTabTarget() === 'nfa' ? cyNfa : cyDfa;
+        const cy = cyDfa;
         if (!cy) return;
         cy.edges('.traversing').forEach(e => {
             e.style('line-dash-offset', antsOffset);
@@ -135,20 +122,6 @@ function stopAnts() {
 }
 
 // ----------------------------- Cytoscape builders ----------------------------- //
-
-function buildNfaElements(nfa) {
-    const nodes = nfa.states.map(s => ({ data: { id: 'n' + s, label: String(s) } }));
-    const edges = nfa.transitions.map((t, idx) => ({
-        data: {
-            id: `ne${idx}`,
-            source: 'n' + t.from,
-            target: 'n' + t.to,
-            label: t.symbol,
-            symbol: t.symbol,
-        },
-    }));
-    return { nodes, edges };
-}
 
 function buildDfaElements(dfa) {
     const nodes = dfa.states.map(s => ({ data: { id: 'd' + s, label: String(s) } }));
@@ -172,7 +145,7 @@ function buildDfaElements(dfa) {
 
 /** Shared Cytoscape factory. Uses the dagre layered layout (loaded via the
  *  cytoscape-dagre CDN) with rankDir 'LR' so states flow left-to-right —
- *  this keeps NFA diagrams compact and matches how state machines are
+ *  this keeps state-machine diagrams compact and matches how automata are
  *  typically drawn in textbooks.
  *
  *  Additional style selectors over the default Cytoscape setup:
@@ -272,52 +245,32 @@ function findEdge(cy, srcId, tgtId, sym) {
     );
 }
 
-// ----------------------------- Tab switching ----------------------------- //
-
-tabButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const target = btn.dataset.target;
-        document.querySelectorAll('.diagram').forEach(d => d.classList.remove('active'));
-        document.getElementById(target).classList.add('active');
-        // Cytoscape needs a resize() after the container becomes visible.
-        if (target === 'nfa' && cyNfa) cyNfa.resize();
-        if (target === 'dfa' && cyDfa) cyDfa.resize();
-        checkAllRegexStrings();
-    });
-});
-
 multiStringRows.forEach(row => {
     const input = row.querySelector('.multi-string-input');
     const simulateBtn = row.querySelector('.simulate-string-btn');
     input.addEventListener('input', () => checkStringRow(row));
     simulateBtn.addEventListener('click', async () => {
-        if (!currentNfa) { alert('Please convert a regex first.'); return; }
+        if (!currentDfa) { alert('Please convert a regex first.'); return; }
         testInput.value = input.value || '';
         currentTestString = testInput.value;
         await checkStringRow(row);
-        if (activeTabTarget() === 'nfa') {
-            await runNfa(currentTestString);
-        } else {
-            await runDfa(currentTestString);
-        }
+        await runDfa(currentTestString);
     });
 });
 
 // ----------------------------- Convert ----------------------------- //
 
 convertBtn.addEventListener('click', async () => {
-    const regex = regexInput.value.trim();
+    const regex = regexInput.value.replace(/\s+/g, '');
     if (!regex) { alert('Please enter a regular expression.'); return; }
 
     clearSteps();
-    addStep('Tokenizing and compiling regex to NFA...');
+    addStep('Tokenizing and compiling regex...');
 
     const nfaResp = await postJson('/api/regex/nfa', { regex });
     if (nfaResp.error) { addStep('Error: ' + nfaResp.error); return; }
     currentNfa = nfaResp;
-    addStep('NFA constructed.');
+    addStep('Internal NFA constructed.');
 
     addStep('Converting NFA to DFA (subset construction + minimization)...');
     const dfaResp = await postJson('/api/regex/dfa', { nfa: currentNfa });
@@ -325,95 +278,29 @@ convertBtn.addEventListener('click', async () => {
     currentDfa = dfaResp;
     addStep('Minimal DFA constructed.');
 
-    const nfaEls = buildNfaElements(currentNfa);
     const dfaEls = buildDfaElements(currentDfa);
 
-    if (cyNfa) cyNfa.destroy();
     if (cyDfa) cyDfa.destroy();
-    cyNfa = createCy('cy-nfa', nfaEls);
     cyDfa = createCy('cy-dfa', dfaEls);
 
     // Mark accept states.
-    const nfaFinalNode = cyNfa.getElementById('n' + currentNfa.final_state);
-    if (nfaFinalNode) nfaFinalNode.addClass('accept');
     currentDfa.accept_states.forEach(s => {
         const node = cyDfa.getElementById('d' + s);
         if (node) node.addClass('accept');
     });
 
     await checkAllRegexStrings();
-    addStep('Diagrams rendered. Switch tabs to compare NFA and DFA.');
+    addStep('DFA diagram rendered.');
 });
 
-// ----------------------------- Run (tab-aware) ----------------------------- //
+// ----------------------------- Run ----------------------------- //
 
 runBtn.addEventListener('click', async () => {
-    if (!currentNfa) { alert('Please convert a regex first.'); return; }
+    if (!currentDfa) { alert('Please convert a regex first.'); return; }
     const s = testInput.value || '';
     currentTestString = s;
-
-    if (activeTabTarget() === 'nfa') {
-        await runNfa(s);
-    } else {
-        await runDfa(s);
-    }
+    await runDfa(s);
 });
-
-/** NFA animation. The backend returns a single accepting path
- *  (JFLAP "fast run" style): one state active per step, one edge fires per
- *  step. Epsilon moves are their own steps with char = 'ε'. */
-async function runNfa(s) {
-    const res = await postJson('/api/regex/nfa/check', { nfa: currentNfa, string: s });
-    if (res.error) { addStep('Error: ' + res.error); return; }
-    const steps = res.steps || [];
-    const valid = !!res.valid;
-
-    cyNfa.elements().removeClass('active traversing valid invalid pulse');
-    startAnts();
-
-    const delay = 700;
-    for (let i = 0; i < steps.length; i++) {
-        const step = steps[i];
-
-        cyNfa.nodes('.active').removeClass('active');
-        cyNfa.edges('.traversing').removeClass('traversing');
-
-        const node = cyNfa.getElementById('n' + step.state);
-        if (node) {
-            node.addClass('active');
-            pulseNode(node);
-        }
-
-        if (step.edge) {
-            findEdge(cyNfa,
-                'n' + step.edge.from,
-                'n' + step.edge.to,
-                step.edge.symbol
-            ).addClass('traversing');
-        }
-
-        if (step.char !== null && step.char !== undefined) {
-            flashChar(step.char);
-        } else {
-            charDisplay.textContent = '-';
-        }
-
-        const edgeStr = step.edge ? ` via ${step.edge.from} --${step.edge.symbol}--> ${step.edge.to}` : ' (start)';
-        addStep(`Step ${i}: state=${step.state} remaining="${step.remaining_input}"${edgeStr}`);
-        await sleep(delay);
-    }
-
-    cyNfa.edges('.traversing').removeClass('traversing');
-    stopAnts();
-
-    if (valid) {
-        cyNfa.elements().addClass('valid');
-        addStep('Result: VALID (string accepted by NFA)');
-    } else {
-        cyNfa.elements().addClass('invalid');
-        addStep('Result: INVALID (string rejected by NFA — trace shows farthest progress)');
-    }
-}
 
 async function runDfa(s) {
     const res = await postJson('/api/regex/check', { dfa: currentDfa, string: s });
@@ -468,7 +355,6 @@ async function runDfa(s) {
 
 resetBtn.addEventListener('click', () => {
     stopAnts();
-    if (cyNfa) cyNfa.elements().removeClass('active traversing valid invalid pulse');
     if (cyDfa) cyDfa.elements().removeClass('active traversing valid invalid pulse');
     charDisplay.textContent = '-';
     charDisplay.classList.remove('flash');
@@ -479,4 +365,4 @@ resetBtn.addEventListener('click', () => {
 
 // ----------------------------- Init ----------------------------- //
 clearSteps();
-addStep('Ready. Enter a regex and click Convert.');
+addStep('Ready. Choose a regex and click Convert.');

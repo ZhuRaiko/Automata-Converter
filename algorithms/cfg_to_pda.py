@@ -5,8 +5,8 @@ Convert a context-free grammar (CFG) into a pushdown automaton (PDA) that
 simulates a top-down (LL-style) derivation.
 
 Construction:
-  - Stack bottom marker is `Z`. An initial epsilon transition from q0 to q1
-    replaces Z with [start_symbol, Z] so the start symbol is on top.
+  - Stack bottom marker is `Z` unless the grammar already uses `Z`; in that
+    case `$` is used to avoid colliding with a grammar symbol.
   - For each production `A -> alpha` we add an epsilon transition from q1 to
     itself that pops A and pushes alpha. Empty alpha (epsilon production)
     means "just pop A".
@@ -69,10 +69,10 @@ def cfg_to_pda(cfg_text: str) -> Dict:
     Returns a PDA dict shaped like:
         {
           "states":              ["q0", "q1", "q2"],
-          "stack_alphabet":      [<nonterminals>, <terminals>, "Z"],
+          "stack_alphabet":      [<nonterminals>, <terminals>, <bottom>],
           "transitions":         [ {from, input, stack_top, to, push}, ... ],
           "start_state":         "q0",
-          "start_stack_symbol":  "Z",
+          "start_stack_symbol":  <bottom>,
           "accept_states":       ["q2"]
         }
     """
@@ -118,16 +118,17 @@ def cfg_to_pda(cfg_text: str) -> Dict:
                 if sym and sym not in nt_set:
                     terminals.add(sym)
 
+    bottom = "$" if "Z" in nt_set or "Z" in terminals else "Z"
     transitions: List[Dict] = []
 
-    # (1) Initial transition: pop Z, push [start_symbol, Z] so start_symbol is on top.
+    # (1) Initial transition: pop bottom, push [start_symbol, bottom].
     start_symbol = nonterminals[0]
     transitions.append({
         "from": "q0",
         "input": "",
-        "stack_top": "Z",
+        "stack_top": bottom,
         "to": "q1",
-        "push": [start_symbol, "Z"],
+        "push": [start_symbol, bottom],
     })
 
     # (2) Production transitions: pop A, push the body in natural order.
@@ -152,21 +153,21 @@ def cfg_to_pda(cfg_text: str) -> Dict:
             "push": [],
         })
 
-    # (4) Accept move: stack has Z on top and input is empty -> jump to q2.
+    # (4) Accept move: stack has only the bottom marker and input is empty.
     transitions.append({
         "from": "q1",
         "input": "",
-        "stack_top": "Z",
+        "stack_top": bottom,
         "to": "q2",
-        "push": ["Z"],
+        "push": [bottom],
     })
 
     return {
         "states": ["q0", "q1", "q2"],
-        "stack_alphabet": sorted(nt_set) + sorted(terminals) + ["Z"],
+        "stack_alphabet": sorted(nt_set) + sorted(terminals) + [bottom],
         "transitions": transitions,
         "start_state": "q0",
-        "start_stack_symbol": "Z",
+        "start_stack_symbol": bottom,
         "accept_states": ["q2"],
     }
 

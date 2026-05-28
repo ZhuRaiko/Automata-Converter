@@ -5,6 +5,35 @@
     gap: 12px;
 }
 
+.cfg-switcher {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.cfg-choice {
+    min-height: 44px;
+    margin: 0;
+    border: 1px solid #dbe2ee;
+    background: #f7f9fc;
+    color: #4d5d73;
+    font-weight: 700;
+    text-align: left;
+}
+
+.cfg-choice.active {
+    border-color: #1976d2;
+    background: #1976d2;
+    color: #fff;
+}
+
+#cfg-input[readonly] {
+    min-height: 240px;
+    resize: vertical;
+    font-family: Consolas, Monaco, "Courier New", monospace;
+}
+
 #cy-pda {
     flex: 1 1 auto;
     height: 420px;
@@ -47,3 +76,9 @@
 }
 .stack-box.push { animation: stack-push 0.5s ease-out; }
 .stack-box.pop  { animation: stack-pop  0.5s ease-out; }
+
+@media (max-width: 700px) {
+    .cfg-switcher {
+        grid-template-columns: 1fr;
+    }
+}

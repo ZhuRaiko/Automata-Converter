@@ -19,11 +19,51 @@ const cfgResetBtn  = document.getElementById('cfg-reset-btn');
 const cfgStepsList = document.getElementById('cfg-steps-list');
 const stackContents = document.getElementById('stack-contents');
 const cfgMultiStringRows = document.querySelectorAll('#cfg-multi-checker .multi-string-row');
+const cfgChoiceButtons = document.querySelectorAll('.cfg-choice');
+
+const convertedCfgs = [
+    `S -> P A bab A Q R
+P -> aba | bab
+A -> aA | bA | ε
+Q -> a | b | ab | ba
+R -> aR | bR | aaR | ε`,
+    `S -> X Y Z W
+X -> 101 | 111 | 1 | 0 | 11
+Y -> 1Y | 0Y | 01Y | ε
+Z -> 111 | 000 | 101
+W -> 1W | 0W | ε`,
+];
 
 let cyPda = null;
 let currentPda = null;
 let currentSteps = null;
 let lastStack = [];
+
+function resetCurrentCfg() {
+    currentPda = null;
+    currentSteps = null;
+    if (cyPda) {
+        cyPda.destroy();
+        cyPda = null;
+    }
+    stackContents.innerHTML = 'Empty Stack';
+    lastStack = [];
+    resetCfgStringResults();
+    clearCfgSteps();
+    addCfgStep('Ready. Choose a CFG and click Convert.');
+}
+
+function showConvertedCfg(index) {
+    cfgInput.value = convertedCfgs[index];
+    cfgChoiceButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.cfg === String(index));
+    });
+    resetCurrentCfg();
+}
+
+cfgChoiceButtons.forEach(btn => {
+    btn.addEventListener('click', () => showConvertedCfg(Number(btn.dataset.cfg)));
+});
 
 async function postJson(url, body) {
     const res = await fetch(url, {
@@ -351,4 +391,4 @@ cfgResetBtn.addEventListener('click', () => {
 
 // Initial state
 clearCfgSteps();
-addCfgStep('Ready. Enter CFG rules and click Convert.');
+showConvertedCfg(0);
