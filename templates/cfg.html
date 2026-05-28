@@ -13,7 +13,10 @@
     <div class="page">
         <header>
             <h1>CFG → PDA</h1>
-            <nav><a href="/">Home</a> • <a href="/regex">Regex → DFA</a></nav>
+            <nav>
+                <a class="home-link" href="/">Home</a>
+                <a class="mode-link" href="/regex">Regex → DFA</a>
+            </nav>
         </header>
 
         <section id="input-panel" class="panel">
@@ -56,6 +59,7 @@
 
             <div class="controls">
                 <button id="cfg-run-btn">Run</button>
+                <button id="cfg-pause-btn" disabled>Pause</button>
                 <button id="cfg-reset-btn">Reset</button>
             </div>
         </section>

@@ -16,6 +16,7 @@ What it does:
 
 const cfgInput = document.getElementById('cfg-input');
 const cfgRunBtn = document.getElementById('cfg-run-btn');
+const cfgPauseBtn = document.getElementById('cfg-pause-btn');
 const cfgResetBtn = document.getElementById('cfg-reset-btn');
 const cfgStepsList = document.getElementById('cfg-steps-list');
 const stackContents = document.getElementById('stack-contents');
@@ -43,8 +44,48 @@ let currentPda = null;
 let currentSteps = null;
 let lastStack = [];
 let selectedCfgIndex = 0;
+let pdaRunToken = 0;
+let pdaPaused = false;
+let pdaPauseWaiters = [];
+
+function releasePdaPauseWaiters() {
+    const waiters = pdaPauseWaiters.splice(0);
+    waiters.forEach(resolve => resolve());
+}
+
+function setPdaPaused(paused) {
+    pdaPaused = paused;
+    cfgPauseBtn.textContent = paused ? 'Resume' : 'Pause';
+    if (!paused) releasePdaPauseWaiters();
+}
+
+function setPdaPauseEnabled(enabled) {
+    cfgPauseBtn.disabled = !enabled;
+    if (!enabled) setPdaPaused(false);
+}
+
+async function waitWhilePdaPaused(token) {
+    while (pdaPaused && token === pdaRunToken) {
+        await new Promise(resolve => pdaPauseWaiters.push(resolve));
+    }
+    return token === pdaRunToken;
+}
+
+function cancelPdaRun() {
+    pdaRunToken++;
+    setPdaPauseEnabled(false);
+    stopAnts();
+}
+
+function scrollPdaVisualizerIntoView() {
+    document.getElementById('cfg-diagram-section')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+    });
+}
 
 function resetCurrentCfg() {
+    cancelPdaRun();
     currentPda = null;
     currentSteps = null;
     if (cyPda) {
@@ -59,6 +100,7 @@ function resetCurrentCfg() {
 }
 
 function showConvertedCfg(index) {
+    cancelPdaRun();
     selectedCfgIndex = index;
     cfgInput.value = convertedCfgs[index];
     cfgChoiceButtons.forEach(btn => {
@@ -506,6 +548,11 @@ async function loadSelectedCfgFlow() {
 
 // ----------------------------- Run (animate) ----------------------------- //
 
+cfgPauseBtn.addEventListener('click', () => {
+    if (cfgPauseBtn.disabled) return;
+    setPdaPaused(!pdaPaused);
+});
+
 cfgRunBtn.addEventListener('click', async () => {
     if (!currentPda) await loadSelectedCfgFlow();
     const s = document.getElementById('cfg-test-input').value || '';
@@ -513,6 +560,9 @@ cfgRunBtn.addEventListener('click', async () => {
 });
 
 async function runPda(s) {
+    const token = ++pdaRunToken;
+    setPdaPaused(false);
+    setPdaPauseEnabled(true);
     clearCfgSteps();
     addCfgStep('Running hardcoded PDA flow...');
     const valid = acceptsSelectedLanguage(s);
@@ -527,46 +577,53 @@ async function runPda(s) {
     let currentActiveId = null;
     let consumedIndex = 0;
 
-    for (let i = 0; i < currentSteps.length; i++) {
-        const step = currentSteps[i];
+    try {
+        for (let i = 0; i < currentSteps.length; i++) {
+            if (!(await waitWhilePdaPaused(token))) return;
+
+            const step = currentSteps[i];
+
+            cyPda.edges('.traversing').removeClass('traversing');
+            edgeById(cyPda, step.edge).addClass('traversing');
+
+            if (step.node !== currentActiveId) {
+                if (currentActiveId) cyPda.getElementById(currentActiveId).removeClass('active');
+                const node = cyPda.getElementById(step.node);
+                if (node) node.addClass('active');
+                currentActiveId = step.node;
+            }
+            const activeNode = cyPda.getElementById(step.node);
+            if (activeNode) {
+                pulseNode(activeNode);
+                keepElementInView(cyPda, activeNode);
+            }
+
+            renderStack(step.stack);
+            if (step.char !== null && step.char !== undefined) {
+                if (step.rejected) {
+                    showCfgRejectedChar(step.char);
+                } else {
+                    advanceCfgCharTape(s, consumedIndex);
+                }
+                consumedIndex += 1;
+            }
+            addCfgStep(`${step.text}; stack: [${(step.stack || []).join(',')}]`);
+
+            await sleep(delay);
+            if (token !== pdaRunToken) return;
+        }
 
         cyPda.edges('.traversing').removeClass('traversing');
-        edgeById(cyPda, step.edge).addClass('traversing');
+        stopAnts();
 
-        if (step.node !== currentActiveId) {
-            if (currentActiveId) cyPda.getElementById(currentActiveId).removeClass('active');
-            const node = cyPda.getElementById(step.node);
-            if (node) node.addClass('active');
-            currentActiveId = step.node;
+        if (cyPda) {
+            if (valid) cyPda.elements().addClass('valid');
+            else cyPda.elements().addClass('invalid');
         }
-        const activeNode = cyPda.getElementById(step.node);
-        if (activeNode) {
-            pulseNode(activeNode);
-            keepElementInView(cyPda, activeNode);
-        }
-
-        renderStack(step.stack);
-        if (step.char !== null && step.char !== undefined) {
-            if (step.rejected) {
-                showCfgRejectedChar(step.char);
-            } else {
-                advanceCfgCharTape(s, consumedIndex);
-            }
-            consumedIndex += 1;
-        }
-        addCfgStep(`${step.text}; stack: [${(step.stack || []).join(',')}]`);
-
-        await sleep(delay);
+        addCfgStep(valid ? 'Result: VALID (string accepted)' : 'Result: INVALID (string rejected)');
+    } finally {
+        if (token === pdaRunToken) setPdaPauseEnabled(false);
     }
-
-    cyPda.edges('.traversing').removeClass('traversing');
-    stopAnts();
-
-    if (cyPda) {
-        if (valid) cyPda.elements().addClass('valid');
-        else cyPda.elements().addClass('invalid');
-    }
-    addCfgStep(valid ? 'Result: VALID (string accepted)' : 'Result: INVALID (string rejected)');
 }
 
 cfgMultiStringRows.forEach(row => {
@@ -577,6 +634,7 @@ cfgMultiStringRows.forEach(row => {
         if (!currentPda) await loadSelectedCfgFlow();
         document.getElementById('cfg-test-input').value = input.value || '';
         await checkCfgStringRow(row);
+        scrollPdaVisualizerIntoView();
         await runPda(input.value || '');
     });
 });
@@ -584,7 +642,7 @@ cfgMultiStringRows.forEach(row => {
 // ----------------------------- Reset ----------------------------- //
 
 cfgResetBtn.addEventListener('click', async () => {
-    stopAnts();
+    cancelPdaRun();
     if (cyPda) cyPda.elements().removeClass('active traversing valid invalid pulse');
     resetViewport(cyPda);
     stackContents.innerHTML = 'Empty Stack';

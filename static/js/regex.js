@@ -15,6 +15,7 @@ What it does:
 const regexInput = document.getElementById('regex-input');
 const testInput  = document.getElementById('test-input');
 const runBtn     = document.getElementById('run-btn');
+const pauseBtn   = document.getElementById('pause-btn');
 const resetBtn   = document.getElementById('reset-btn');
 const stepsList  = document.getElementById('steps-list');
 const pendingChar = document.getElementById('pending-char');
@@ -98,6 +99,9 @@ let cyDfa = null;
 let currentDfa = null;
 let currentTestString = '';
 let selectedRegexIndex = 0;
+let dfaRunToken = 0;
+let dfaPaused = false;
+let dfaPauseWaiters = [];
 
 // ----------------------------- Utilities ----------------------------- //
 
@@ -111,8 +115,44 @@ function addStep(text) {
 }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-function showFixedRegex(index) {
+function releaseDfaPauseWaiters() {
+    const waiters = dfaPauseWaiters.splice(0);
+    waiters.forEach(resolve => resolve());
+}
+
+function setDfaPaused(paused) {
+    dfaPaused = paused;
+    pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+    if (!paused) releaseDfaPauseWaiters();
+}
+
+function setDfaPauseEnabled(enabled) {
+    pauseBtn.disabled = !enabled;
+    if (!enabled) setDfaPaused(false);
+}
+
+async function waitWhileDfaPaused(token) {
+    while (dfaPaused && token === dfaRunToken) {
+        await new Promise(resolve => dfaPauseWaiters.push(resolve));
+    }
+    return token === dfaRunToken;
+}
+
+function cancelDfaRun() {
+    dfaRunToken++;
+    setDfaPauseEnabled(false);
     stopAnts();
+}
+
+function scrollDfaVisualizerIntoView() {
+    document.getElementById('diagram-panel')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+    });
+}
+
+function showFixedRegex(index) {
+    cancelDfaRun();
     selectedRegexIndex = index;
     regexInput.value = fixedRegexes[index];
     regexChoiceButtons.forEach(btn => {
@@ -429,11 +469,17 @@ multiStringRows.forEach(row => {
         testInput.value = input.value || '';
         currentTestString = testInput.value;
         await checkStringRow(row);
+        scrollDfaVisualizerIntoView();
         await runDfa(currentTestString);
     });
 });
 
 // ----------------------------- Run ----------------------------- //
+
+pauseBtn.addEventListener('click', () => {
+    if (pauseBtn.disabled) return;
+    setDfaPaused(!dfaPaused);
+});
 
 runBtn.addEventListener('click', async () => {
     if (!currentDfa) loadSelectedDfa();
@@ -443,8 +489,15 @@ runBtn.addEventListener('click', async () => {
 });
 
 async function runDfa(s) {
+    const token = ++dfaRunToken;
+    setDfaPaused(false);
+    setDfaPauseEnabled(true);
     const res = await checkRegexString(s);
-    if (res.error) { addStep('Error: ' + res.error); return; }
+    if (res.error) {
+        addStep('Error: ' + res.error);
+        setDfaPauseEnabled(false);
+        return;
+    }
     const path = res.path || [];
     const valid = !!res.valid;
     const rejectedAt = res.rejectedAt;
@@ -454,55 +507,62 @@ async function runDfa(s) {
     startAnts();
 
     const delay = 700;
-    for (let i = 0; i < path.length; i++) {
-        // Reset transient highlights from the previous frame.
-        cyDfa.nodes('.active').removeClass('active');
-        cyDfa.edges('.traversing').removeClass('traversing');
+    try {
+        for (let i = 0; i < path.length; i++) {
+            if (!(await waitWhileDfaPaused(token))) return;
 
-        const nodeId = 'd' + path[i];
-        const node = cyDfa.getElementById(nodeId);
-        if (node) {
-            node.addClass('active');
-            pulseNode(node);
-            keepElementInView(cyDfa, node);
-        }
+            // Reset transient highlights from the previous frame.
+            cyDfa.nodes('.active').removeClass('active');
+            cyDfa.edges('.traversing').removeClass('traversing');
 
-        // Flash the just-consumed character and light up the edge for it.
-        if (i < currentTestString.length) {
-            const ch = currentTestString[i];
-            if (i + 1 < path.length) {
-                const nextId = 'd' + path[i + 1];
-                findEdge(cyDfa, nodeId, nextId, ch).addClass('traversing');
+            const nodeId = 'd' + path[i];
+            const node = cyDfa.getElementById(nodeId);
+            if (node) {
+                node.addClass('active');
+                pulseNode(node);
+                keepElementInView(cyDfa, node);
             }
-            if (rejectedAt === i) {
-                showRejectedChar(ch);
+
+            // Flash the just-consumed character and light up the edge for it.
+            if (i < currentTestString.length) {
+                const ch = currentTestString[i];
+                if (i + 1 < path.length) {
+                    const nextId = 'd' + path[i + 1];
+                    findEdge(cyDfa, nodeId, nextId, ch).addClass('traversing');
+                }
+                if (rejectedAt === i) {
+                    showRejectedChar(ch);
+                } else {
+                    advanceCharTape(currentTestString, i);
+                }
             } else {
-                advanceCharTape(currentTestString, i);
+                setPendingChar(null, 'empty');
             }
-        } else {
-            setPendingChar(null, 'empty');
+
+            await sleep(delay);
+            if (token !== dfaRunToken) return;
+            if (rejectedAt === i) break;
         }
 
-        await sleep(delay);
-        if (rejectedAt === i) break;
-    }
+        cyDfa.edges('.traversing').removeClass('traversing');
+        stopAnts();
 
-    cyDfa.edges('.traversing').removeClass('traversing');
-    stopAnts();
-
-    if (valid) {
-        cyDfa.elements().addClass('valid');
-        addStep('Result: VALID (string accepted by DFA)');
-    } else {
-        cyDfa.elements().addClass('invalid');
-        addStep('Result: INVALID (string rejected by DFA)');
+        if (valid) {
+            cyDfa.elements().addClass('valid');
+            addStep('Result: VALID (string accepted by DFA)');
+        } else {
+            cyDfa.elements().addClass('invalid');
+            addStep('Result: INVALID (string rejected by DFA)');
+        }
+    } finally {
+        if (token === dfaRunToken) setDfaPauseEnabled(false);
     }
 }
 
 // ----------------------------- Reset ----------------------------- //
 
 resetBtn.addEventListener('click', async () => {
-    stopAnts();
+    cancelDfaRun();
     if (cyDfa) cyDfa.elements().removeClass('active traversing valid invalid pulse');
     resetViewport(cyDfa);
     resetCharTape();

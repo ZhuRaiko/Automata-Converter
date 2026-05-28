@@ -2,12 +2,15 @@
 
 #cfg-diagram-section {
     display: flex;
-    gap: 12px;
+    gap: 14px;
+    align-items: stretch;
 }
 
 .cfg-visual-main {
     flex: 1 1 auto;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 #cfg-current-char {
@@ -20,8 +23,9 @@
 }
 
 .char-label {
-    color: #25364d;
+    color: var(--navy);
     white-space: nowrap;
+    letter-spacing: 0;
 }
 
 .char-tape {
@@ -30,10 +34,14 @@
     gap: 6px;
     min-height: 38px;
     min-width: min(100%, 360px);
-    padding: 4px 6px;
+    padding: 5px 7px;
     border-radius: 8px;
-    background: var(--surface-soft);
+    background:
+        linear-gradient(var(--rule) 1px, transparent 1px),
+        #fffefa;
+    background-size: 100% 24px, auto;
     border: 1px solid var(--border);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
     overflow-x: auto;
 }
 
@@ -53,8 +61,9 @@
     height: 28px;
     border-radius: 7px;
     border: 1px solid var(--border);
-    background: var(--surface-soft);
-    color: #4d5d73;
+    background: #fffdf7;
+    color: var(--navy-2);
+    font-family: Consolas, Monaco, "Courier New", monospace;
     font-size: 0.95rem;
     font-weight: 800;
     text-align: center;
@@ -65,66 +74,85 @@
     background: var(--amber-soft);
     border-color: #f1d27a;
     color: var(--amber);
+    box-shadow: inset 0 -2px 0 rgba(138, 101, 0, 0.12);
 }
 
 .char-token.accepted {
     border-color: #afe5c1;
     background: var(--green-soft);
     color: var(--green);
+    box-shadow: inset 0 -2px 0 rgba(35, 138, 73, 0.12);
 }
 
 .char-token.rejected {
     border-color: #ffc4bf;
     background: var(--red-soft);
     color: var(--red);
+    box-shadow: inset 0 -2px 0 rgba(196, 61, 54, 0.12);
 }
 
 .char-token.empty {
-    background: #eef2f7;
+    background: #f2f5f6;
     border-color: var(--border);
-    color: #8b98aa;
+    color: #7b8896;
 }
 
 .cfg-switcher {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 10px;
+    margin-bottom: 10px;
 }
 
 .cfg-choice {
-    min-height: 48px;
+    min-height: 58px;
     margin: 0;
     border: 1px solid var(--border);
-    background: var(--surface-soft);
-    color: #3d4f66;
+    background:
+        linear-gradient(90deg, rgba(15, 118, 110, 0.10) 0 4px, transparent 4px),
+        linear-gradient(var(--rule) 1px, transparent 1px),
+        var(--paper);
+    background-size: auto, 100% 24px, auto;
+    color: var(--navy-2);
     font-weight: 800;
     text-align: left;
     line-height: 1.25;
+    box-shadow: 0 4px 10px rgba(7, 24, 47, 0.04);
 }
 
 .cfg-choice:hover {
-    border-color: #9fc3ff;
-    background: #eff5ff;
+    border-color: #7abdb5;
+    background:
+        linear-gradient(90deg, rgba(15, 118, 110, 0.16) 0 4px, transparent 4px),
+        linear-gradient(var(--rule) 1px, transparent 1px),
+        #fffefa;
 }
 
 .cfg-choice.active {
     border-color: var(--primary);
-    background: #eef4ff;
+    background:
+        linear-gradient(90deg, var(--teal) 0 4px, transparent 4px),
+        linear-gradient(var(--rule) 1px, transparent 1px),
+        var(--teal-soft);
     color: var(--primary-dark);
-    box-shadow: inset 3px 0 0 var(--primary);
+    box-shadow: inset 0 -3px 0 rgba(15, 118, 110, 0.24), 0 6px 14px rgba(15, 118, 110, 0.10);
 }
 
 #cfg-input[readonly] {
     min-height: 240px;
     resize: vertical;
     font-family: Consolas, Monaco, "Courier New", monospace;
-    background: #fbfdff;
-    color: #25364d;
+    line-height: 1.5;
+    background:
+        linear-gradient(var(--rule) 1px, transparent 1px),
+        #fffefa;
+    background-size: 100% 24px, auto;
+    color: var(--navy-2);
 }
 
 #cy-pda {
     height: 460px;
+    flex: 1 1 auto;
 }
 
 #stack-contents {
@@ -137,26 +165,28 @@
     padding: 7px 8px;
     border: 1px solid var(--border);
     border-radius: 6px;
-    background: #fff;
-    color: #25364d;
+    background: #fffefa;
+    color: var(--navy);
     text-align: center;
     font-weight: 800;
+    font-family: Consolas, Monaco, "Courier New", monospace;
     transition: background 0.2s ease-out, border-color 0.2s ease-out;
 }
 
 .stack-top {
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(36, 84, 214, 0.12);
+    background: var(--teal-soft);
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
 }
 
 @keyframes stack-push {
     0%   { background: rgba(35, 138, 73, 0.85); transform: scale(1.16); }
-    100% { background: white;                   transform: scale(1.0); }
+    100% { background: #fffefa;                 transform: scale(1.0); }
 }
 
 @keyframes stack-pop {
     0%   { background: rgba(196, 61, 54, 0.85); transform: scale(1.16); }
-    100% { background: white;                   transform: scale(1.0); }
+    100% { background: #fffefa;                 transform: scale(1.0); }
 }
 
 .stack-box.push { animation: stack-push 0.5s ease-out; }
@@ -165,5 +195,9 @@
 @media (max-width: 700px) {
     .cfg-switcher {
         grid-template-columns: 1fr;
+    }
+
+    #cfg-diagram-section {
+        flex-direction: column;
     }
 }
