@@ -1,4 +1,4 @@
-/* regex.css - styles specific to Regex page */
+/* Regex page */
 
 .diagram { display: none; }
 .diagram.active { display: block; }
@@ -11,63 +11,110 @@
 }
 
 .regex-choice {
-    min-height: 44px;
+    min-height: 48px;
     margin: 0;
-    border: 1px solid #dbe2ee;
-    background: #f7f9fc;
-    color: #4d5d73;
-    font-weight: 700;
+    border: 1px solid var(--border);
+    background: var(--surface-soft);
+    color: #3d4f66;
+    font-weight: 800;
     text-align: left;
+    line-height: 1.25;
+}
+
+.regex-choice:hover {
+    border-color: #9fc3ff;
+    background: #eff5ff;
 }
 
 .regex-choice.active {
-    border-color: #1976d2;
-    background: #1976d2;
-    color: #fff;
+    border-color: var(--primary);
+    background: #eef4ff;
+    color: var(--primary-dark);
+    box-shadow: inset 3px 0 0 var(--primary);
 }
 
-/* Current-character indicator. Sits above the diagram tabs so it's visible
-   for both NFA and DFA traversals. The span flashes when a new character is
-   consumed (see .flash keyframes below). */
 #current-char {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     margin: 6px 0 10px 0;
-    font-weight: bold;
+    font-weight: 800;
+    flex-wrap: wrap;
 }
-#char-display {
-    display: inline-block;
-    min-width: 26px;
-    padding: 2px 10px;
-    margin-left: 4px;
-    color: #1976d2;
-    background: transparent;
-    border-radius: 4px;
+
+.char-label {
+    color: #25364d;
+    white-space: nowrap;
+}
+
+.char-tape {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 38px;
+    min-width: min(100%, 360px);
+    padding: 4px 6px;
+    border-radius: 8px;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    overflow-x: auto;
+}
+
+.verified-chars {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.char-token {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 32px;
+    width: 32px;
+    height: 28px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--surface-soft);
+    color: #4d5d73;
+    font-size: 0.95rem;
+    font-weight: 800;
     text-align: center;
-    transition: background 0.25s ease-out;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
-/* Re-trigger this on every step by removing+adding the .flash class. */
-@keyframes char-flash {
-    0%   { background: rgba(255, 224, 130, 0.0); transform: scale(1.0); }
-    25%  { background: rgba(255, 193, 7, 0.95);  transform: scale(1.55); }
-    100% { background: rgba(255, 224, 130, 0.0); transform: scale(1.0); }
-}
-#char-display.flash {
-    animation: char-flash 0.55s ease-out;
+.char-token.pending {
+    background: var(--amber-soft);
+    border-color: #f1d27a;
+    color: var(--amber);
 }
 
-/* Legacy helper classes kept for compatibility with any other code that
-   might reference them. */
-.cy-node-active { box-shadow: 0 0 18px rgba(25, 118, 210, 0.55); }
-.cy-edge-active { line-color: #1976d2; }
-.cy-valid { background-color: #2e7d32 !important; border-color: #2e7d32 !important; }
-.cy-invalid { background-color: #c62828 !important; border-color: #c62828 !important; }
+.char-token.accepted {
+    border-color: #afe5c1;
+    background: var(--green-soft);
+    color: var(--green);
+}
 
-/* Small responsive tweak */
+.char-token.rejected {
+    border-color: #ffc4bf;
+    background: var(--red-soft);
+    color: var(--red);
+}
+
+.char-token.empty {
+    background: #eef2f7;
+    border-color: var(--border);
+    color: #8b98aa;
+}
+
+.cy-node-active { box-shadow: 0 0 18px rgba(36, 84, 214, 0.35); }
+.cy-edge-active { line-color: var(--primary); }
+.cy-valid { background-color: var(--green) !important; border-color: var(--green) !important; }
+.cy-invalid { background-color: var(--red) !important; border-color: var(--red) !important; }
+
 @media (max-width: 700px) {
     .regex-switcher {
         grid-template-columns: 1fr;
     }
-
-    .horizontal { flex-direction: column; }
-    #stack-panel { width: 100%; }
 }

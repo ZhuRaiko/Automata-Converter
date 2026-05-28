@@ -1,142 +1,147 @@
 # User Manual
 
-**Live application:** _[Insert your deployment URL here]_
-
-> Screenshot callout format used below:
-> > 📷 **Figure N.** Page → setup → capture → suggested filename
-> Save under `Documentation/images/`.
-
----
-
-## 1. Run it
+## Run The App
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate          # Windows; on macOS/Linux: source .venv/bin/activate
+.venv\Scripts\activate
 pip install flask
 python app.py
 ```
 
-Open `http://127.0.0.1:5000/`. Two cards — pick a pipeline.
+Open `http://127.0.0.1:5000/`.
 
-> 📷 **UM-1.** `/` — Home page with the two cards. `um01_home.png`
+The home page links to two tools:
 
----
+- Regex -> DFA
+- CFG -> PDA
 
-## 2. Regex page (`/regex`)
+## Regex -> DFA Page
 
-Three areas: input on top, NFA/DFA tabs in the middle (with a shared
-**Current char** indicator above), step viewer at the bottom.
+Open `http://127.0.0.1:5000/regex`.
 
-### Notation accepted
+The page currently provides two preset regex choices:
 
-| Meaning       | Forms                 | Example      |
-|---------------|-----------------------|--------------|
-| Union         | `\|`, `U`, `+`        | `a+b` ≡ `a\|b` |
-| Concatenation | juxtaposition         | `abc`        |
-| Kleene star   | `*`                   | `a*`         |
-| Epsilon       | `ε`, `E`              | `(a+ε)b`     |
-| Grouping      | `( )`                 | `(a+b)*abb`  |
+1. `(aba+bab)(a+b)*(bab)(a+b)*(a+b+ab+ba)(a+b+aa)*`
+2. `((101+111+101)+(1+0+11))(1+0+01)*(111+000+101)(1+0)*`
 
-`+` is algebraic union (Hopcroft-Ullman). The programming-regex
-"one-or-more" Kleene-plus is **not** supported — `*` is the only Kleene
-operator.
+The regex text is stored in a hidden input. Choose a preset and the page will
+automatically:
 
-### Walkthrough — `(a+b)*abb` on `aabb`
+1. load the matching hardcoded DFA from `static/js/regex.js`
+2. render the DFA
+3. check all five string rows locally
 
-1. Type the regex and one or more test strings.
-2. Click **Convert**. Both diagrams render.
-3. Switch tabs to compare. DFA should be 4 states. The five test rows show
-   accepted/rejected status for the currently selected tab.
-4. Click **Run** or a row's **Simulate** button on the DFA tab. The active state pulses; the traversed
-   edge marches; the consumed char flashes. End: everything green.
-5. Reset, change test to `abba`, Run. Ends red — regex requires the
-   string to end in `abb`.
+### Test Strings
 
-> 📷 **UM-2.** After Convert, NFA tab. `um02_regex_nfa.png`  
-> 📷 **UM-3.** Same, DFA tab — 4 states. `um03_regex_dfa.png`  
-> 📷 **UM-4.** Final green frame on `aabb`. `um04_regex_accept.png`  
-> 📷 **UM-5.** Red rejection on `abba`. `um05_regex_reject.png`
+There are five test-string rows. Each row has:
 
-### NFA animation
+- a text input
+- an accepted/rejected status
+- a **Simulate** button
 
-Same Run flow on the NFA tab. The simulator finds **one** accepting path
-(BFS over `(state, position)` configurations) and animates it — one
-active state, one edge at a time. ε-steps show `ε` in the char indicator.
+Typing in a row rechecks that string after a DFA has been built. Pressing
+**Simulate** copies that row into the main run input and animates the DFA
+path.
 
-> 📷 **UM-6.** NFA mid-animation. `um06_nfa_run.png`
+### Controls
 
----
+| Button | Action |
+|---|---|
+| Run | Animate the first test string input. |
+| Reset | Clear highlights, statuses, and step log. |
+| Simulate | Animate the string from that specific row. |
 
-## 3. CFG page (`/cfg`)
+### Animation
 
-Same layout, plus a stack panel on the right of the PDA diagram.
+During a run:
 
-### Notation accepted
+- the current DFA state highlights and pulses
+- the traversed edge becomes orange and dashed
+- the current character flashes in the "Current char" indicator
+- accepted runs turn the diagram green
+- rejected runs turn the diagram red
 
-| Meaning       | Forms                                                                |
-|---------------|----------------------------------------------------------------------|
-| Arrow         | `->`, `→`, `⇒`                                                       |
-| Alternative   | `\|`                                                                 |
-| Epsilon       | `ε`, `λ`, `Λ`, `Ε`, `^`, `epsilon`, `lambda`, `null`, `nil`, `eps`, `n`, or empty alt |
+## Regex Notation
 
-One production per line. First nonterminal seen is the start symbol.
-**Conflict note:** `n` is recognized as epsilon only when it's the *entire*
-alternative (`S -> n` ≡ `S -> ε`). Inside `S -> an` the `n` is still a
-terminal.
+| Meaning | Forms | Example |
+|---|---|---|
+| Union | `|`, `U`, `+` | `a+b` means `a|b` |
+| Concatenation | Juxtaposition | `abc` |
+| Kleene star | `*` | `a*` |
+| Epsilon | Greek epsilon or `E` | `(a+E)b` |
+| Grouping | `( )` | `(a+b)*abb` |
 
-### Walkthrough — `S -> aSb | ε` on `aabb`
+`+` is union, not the programming-regex "one or more" operator.
 
-1. Type the grammar and one or more test strings.
-2. Click **Convert**. Three states (`q0`, `q1`, `q2`) appear; `q2` is drawn
-   as the final state. The five test rows show accepted/rejected status.
-3. Click **Run** or a row's **Simulate** button. Frame 0 sits at `q0` (stack `[Z]`); frame 1 transitions
-   to `q1` with the start symbol pushed. Stack top flashes **green on
-   push**, **red on pop**. Around step 5 the stack looks like
-   `[Z, b, b, S]` (top is `S`, at the visual top). The animation finishes
-   at `q2` — all green.
+## CFG -> PDA Page
 
-> 📷 **UM-7.** After Convert. `um07_pda_built.png`  
-> 📷 **UM-8.** Mid-derivation, multi-symbol stack. `um08_pda_running.png`  
-> 📷 **UM-9.** Final accept frame. `um09_pda_accept.png`
+Open `http://127.0.0.1:5000/cfg`.
 
-### Walkthrough — `S -> aS | bS | n` on `aa`
+The current CFG page is a preset demonstration page. It shows two converted
+CFG choices matching the same language families as the regex page:
 
-Demonstrates the `n`-as-epsilon shortcut. Grammar generates `{a, b}*` —
-every string of `a`s and `b`s. All inputs over the alphabet accept.
+1. A language based on the `aba` or `bab` prefix, a `bab` middle segment, and
+   a required ending pattern.
+2. A binary language based on the provided `101/111/...` expression.
 
-> 📷 **UM-10.** Accept on `aa` with `n` notation. `um10_n_accept.png`
+The CFG text area is read-only. Choose one of the two presets and the page
+automatically renders the matching flow.
 
-### What the simulator can / can't handle
+The page renders a compact PDA-style flowchart rather than the full general
+PDA from the backend. It also shows a stack panel beside the diagram.
 
-Handles classroom-friendly LL(1)-style grammars:
+### CFG Test Strings
 
-- `S -> aSb | ε`            (aⁿbⁿ)
-- `S -> aA; A -> bA | ε`    (ab*)
-- `S -> AB; A -> a; B -> b` (concat across nonterminals)
-- `S -> (S)S | ε`           (balanced parens, LL(1) form)
+The five string rows work the same way as the regex page:
 
-Won't handle without rewriting:
+- type strings to check them after conversion
+- use **Simulate** to animate a specific row
+- use **Run** to animate the first row
 
-- **Ambiguous**, e.g. `S -> SS | (S) | ε`.
-- **Left-recursive**, e.g. `S -> Sa | a`. These hit the `max_steps`
-  safety cap; the step viewer prints "Simulation exceeded N steps".
-  Standard fix: left-recursion removal (`E → E+T | T` becomes
-  `E → TE'; E' → +TE' | ε`).
+### CFG Animation
 
----
+During a run:
 
-## 4. Troubleshooting
+- READ states light up as the string is consumed
+- the active transition uses the orange dashed "marching" style
+- the stack panel pushes symbols while reading
+- on an accepting run, the stack is popped back down and the flow reaches an
+  ACCEPT node
+- rejected runs turn the diagram red
+
+The stack panel is visual, not a full display of the backend CFG-to-PDA
+transition table.
+
+## Backend CFG/PDA APIs
+
+The backend still exposes general CFG/PDA endpoints:
+
+- `POST /api/cfg/pda`
+- `POST /api/cfg/check`
+
+Those endpoints parse arbitrary CFG text and run the BFS PDA simulator. The
+current `/cfg` page does not call them; it uses the fixed JavaScript flow in
+`static/js/cfg.js`.
+
+The backend also still has regex conversion/checking endpoints, but the
+current `/regex` page uses the hardcoded DFA data in `static/js/regex.js`
+instead.
+
+## Troubleshooting
 
 | Problem | Fix |
-|---------|-----|
-| Diagram is missing | Open browser console. If `cytoscape is not defined`, the CDN didn't load — check network. The dagre extension falls back to `cose` automatically if it can't load. |
-| `(a+b)*` rejects something you expected to accept | Verify there are no spaces inside the regex — the regex page doesn't strip them. |
-| Grammar with `n` rejects | Check that `n` is the *entire* alternative; inside a longer alt it's still a terminal. |
-| Step viewer shows "Simulation exceeded N steps" | The grammar is left-recursive or unbounded. Rewrite it. |
-| Stack panel looks empty mid-run | Click **Reset**, then Convert, then Run in order. |
+|---|---|
+| Diagram does not appear | Check browser console and network access. Cytoscape is loaded from a CDN. |
+| Regex conversion fails | Check parentheses and unsupported operators. `+` is union only. |
+| String rows stay "Not Checked" | Switch presets or type in a string row to trigger checking again. |
+| CFG text cannot be edited | This is expected in the current UI; the CFG page uses fixed presets. |
+| CFG result differs from an arbitrary grammar you expected | The current CFG page is not an arbitrary CFG parser; use the backend endpoints or extend the UI for that. |
 
----
+## Related Docs
 
-*See also:* [`paper.md`](./paper.md), [`presentation_guide.md`](./presentation_guide.md),
-[`reviewer.md`](./reviewer.md), [`algorithms.md`](./algorithms.md).
+- [`overview.md`](./overview.md)
+- [`algorithms.md`](./algorithms.md)
+- [`paper.md`](./paper.md)
+- [`presentation_guide.md`](./presentation_guide.md)
+- [`reviewer.md`](./reviewer.md)

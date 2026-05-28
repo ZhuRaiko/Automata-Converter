@@ -1,238 +1,214 @@
 # Algorithms
 
-This document explains the algorithms implemented in this project:
+This document describes the algorithm code that exists in the project and
+how the current UI uses it.
 
-1. Thompson's Construction (Regex -> NFA)
-2. Subset Construction with Hopcroft Minimization (NFA -> minimal DFA)
-3. CFG -> PDA conversion (top-down / LL-style)
-4. PDA Simulation (deterministic with an LL(1)-style production heuristic)
+## Current UI Versus Backend Scope
 
-## Notation cheat-sheet
+The backend contains general algorithm modules for both regular languages and
+context-free grammars.
 
-The parsers accept a few synonyms so students can use whichever notation
-their textbook prefers (algebraic, programming-regex, or hand-written).
+The current frontend is more focused:
 
-**Regex page** (Thompson's construction):
-| meaning       | accepted forms          | example          |
-|---------------|-------------------------|------------------|
-| union         | `\|`, `U`, `+`          | `a+b` = `a\|b`   |
-| concatenation | (juxtaposition)         | `abc`            |
-| Kleene star   | `*`                     | `a*`             |
-| epsilon       | `ε`, `E`                | `(a+ε)b`         |
+- `/regex` uses two hardcoded minimized DFA objects in `static/js/regex.js`.
+  The backend regex pipeline still exists, but the current UI does not call it.
+- `/cfg` shows two fixed converted CFG presets and animates a compact
+  PDA-style flowchart implemented in `static/js/cfg.js`. It does not currently
+  call the general CFG/PDA backend endpoints.
 
-`+` is the algebraic-union notation from Hopcroft-Ullman (not the "one or
-more" Kleene-plus from programming regex flavors — that operator isn't
-supported).
+The backend CFG/PDA modules are still useful as reusable algorithm code and as
+an extension point if the UI is expanded again.
 
-**CFG page** (top-down PDA):
-| meaning   | accepted forms                                                |
-|-----------|---------------------------------------------------------------|
-| arrow     | `->`, `→`, `⇒`                                                |
-| alt       | `\|`                                                          |
-| epsilon   | `ε`, `λ`, `Λ`, `Ε`, `^`, `epsilon`, `lambda`, `null`, `nil`, `eps`, `n`, (empty alt) |
+## Regex Notation
 
-Single-letter `n` is recognized as epsilon only when it's the ENTIRE
-alternative (so `S -> n` means `S -> ε`, but inside `S -> an` the `n` stays a
-terminal). Avoid `n` as a standalone terminal name if you also use it as the
-null shortcut elsewhere in the same grammar.
+Supported by `algorithms/thompson.py`:
 
-Each section explains what the algorithm does, walks through it step by step,
-shows a worked example, and notes the design choices behind the school-project
-implementation.
+| Meaning | Forms | Example |
+|---|---|---|
+| Union | `|`, `U`, `+` | `a+b` means `a|b` |
+| Concatenation | Juxtaposition | `abc` |
+| Kleene star | `*` | `a*` |
+| Epsilon | `epsilon character`, `E` | `(a+E)b` |
+| Grouping | `( )` | `(a+b)*abb` |
 
----
+`+` is algebraic union, not programming-regex "one or more". Multi-character
+symbols, character classes, escapes, `?`, and repetition ranges are out of
+scope.
 
-## Thompson's Construction (Regex -> NFA)
+## Thompson's Construction: Regex -> NFA
 
-**What it is.** A constructive algorithm that converts a regular expression
-into an equivalent nondeterministic finite automaton (NFA) using small
-fragment templates connected by epsilon transitions.
+`thompson.py` parses the regex with recursive descent:
 
-**Step-by-step.**
-
-1. Parse the regex with a recursive-descent parser, producing an AST that
-   respects precedence: `union (|)` < `concatenation` < `Kleene star (*)`
-   < `atom`. Atoms are single alphanumeric characters, `ε` (or `E`), or a
-   parenthesized subexpression.
-2. Translate the AST bottom-up:
-   - **Symbol `a`**: two fresh states with a single `a`-edge.
-   - **Epsilon**: two fresh states with a single `ε`-edge.
-   - **Concatenation**: glue `left.accept` to `right.start` with an `ε`-edge.
-   - **Union**: new start branches to both children's starts; both children's
-     accepts converge into a new accept state.
-   - **Kleene star**: new start with a bypass edge (matches empty) plus an
-     entry edge; child accept loops back to child start and to the new accept.
-
-**Worked example.** `(a|b)*abb` produces an NFA of 14 states and 16 edges
-(including epsilon edges that wire up the union and the star). Each fragment
-has exactly one start and one accept, which keeps the construction uniform.
-
-**Why this construction.** The fragment shape is simple to teach, the
-epsilon structure is directly visible in the diagram, and it composes
-recursively from the AST — the implementation mirrors the algorithm
-description almost line for line.
-
----
-
-## Subset Construction + Hopcroft Minimization (NFA -> DFA)
-
-**What it is.** Subset (powerset) construction turns an NFA into an
-equivalent DFA by treating sets of NFA states as single DFA states. We then
-run Hopcroft's partition-refinement algorithm to produce the minimal
-equivalent DFA so the rendered diagram is as small as possible.
-
-**Step-by-step.**
-
-1. Compute the epsilon-closure of the NFA start state — this is the first
-   DFA state.
-2. Worklist BFS: for each unprocessed DFA state `T` and each input symbol
-   `a`, compute `epsilon_closure(move(T, a))`. Each new subset becomes a new
-   DFA state; the transition is `T --a--> U`.
-3. **Lazy trap state.** Only if at least one transition above is undefined
-   (target set is empty) do we add the empty-set sink. Simple regexes like
-   `a*` produce a single-state DFA with no dangling trap node.
-4. Mark every DFA state that contains the NFA accept as an accepting DFA
-   state.
-5. **Hopcroft minimization.** Partition the DFA states into accepting and
-   non-accepting blocks. Repeatedly split a block whenever some symbol takes
-   different members of the block to different blocks. The resulting blocks
-   are the states of the minimal DFA. Final ids are assigned in BFS order
-   from the new start, dropping any unreachable blocks.
-
-**Worked example.** The raw subset construction for `(a|b)*abb` produces 5
-states (4 reachable + 1 trap). Hopcroft minimization recognizes that the
-trap and the initial state are not equivalent — keeping 4 states, which is
-the canonical minimal DFA for this language.
-
-**Why this construction.** Subset construction is the canonical NFA->DFA
-algorithm; Hopcroft minimization gives a clean, smaller diagram that's much
-easier for students to read. Complexity: subset construction is exponential
-in the worst case but tiny for classroom regexes; Hopcroft is
-`O(|Q| * |Sigma| * log |Q|)`.
-
----
-
-## Accepted epsilon notations
-
-The CFG tokenizer treats any of these as the empty production (epsilon) so
-students can use whichever convention their course or textbook prefers:
-
-- Greek characters: `ε`, `λ`, `Λ`, `Ε`
-- Case-insensitive words: `epsilon`, `lambda`, `null`, `nil`, `eps`
-- An empty alternative after `|`, e.g. `S -> aSb |` treats the right side
-  of the `|` as epsilon.
-
-So `S -> aS | bS | null` and `S -> aS | bS | ε` produce the same PDA.
-
----
-
-## CFG -> PDA (Top-Down / LL-style)
-
-**What it is.** Converts a context-free grammar into a pushdown automaton
-whose runs mimic a top-down derivation. Nonterminals on the stack are
-replaced by production bodies; terminals on the stack are matched and popped
-against input characters.
-
-**PDA shape.** Three states `q0`, `q1`, `q2`. `q0` is the start, `q2` is the
-sole accept state. All work happens in `q1`.
-
-**Push convention (important).** In every transition's `push` list, `push[0]`
-is the symbol that ends up on the TOP of the stack after the push, and
-`push[-1]` ends up deepest. This matches how a production body reads
-naturally: for `S -> aSb` we store `push = ["a", "S", "b"]`, and after the
-push `a` is on top so the simulator can match it against the next input
-character. The simulator implements this by iterating `reversed(push)` when
-applying a transition.
-
-**Transitions created.**
-
-1. **Initial.** `q0 --epsilon, Z/[start, Z]--> q1` — pop the bottom marker
-   `Z` and push `[start_symbol, Z]`, so the start symbol is now on top.
-2. **Productions.** For each rule `A -> alpha`, add
-   `q1 --epsilon, A/alpha--> q1`. An epsilon-production becomes
-   `q1 --epsilon, A/[] --> q1` (just pop A).
-3. **Terminal matches.** For each terminal `a` appearing in the grammar,
-   add `q1 --a, a/[]--> q1` — consume the input character and pop the
-   matching symbol off the stack.
-4. **Accept.** `q1 --epsilon, Z/[Z]--> q2` — when only `Z` is on the stack
-   and the input has been consumed.
-
-**Worked example.** Grammar `S -> aSb | epsilon` on input `aabb`:
-
-```
-step  state  remaining  stack (bottom .. top)
- 0    q1     aabb       [Z, S]
- 1    q1     aabb       [Z, b, S, a]      -- apply S -> aSb
- 2    q1     abb        [Z, b, S]         -- match 'a'
- 3    q1     abb        [Z, b, b, S, a]   -- apply S -> aSb
- 4    q1     bb         [Z, b, b, S]      -- match 'a'
- 5    q1     bb         [Z, b, b]         -- apply S -> epsilon (pop S)
- 6    q1     b          [Z, b]            -- match 'b'
- 7    q1     ''         [Z]               -- match 'b'
- 8    q2     ''         [Z]               -- accept
+```text
+union < concatenation < star < atom
 ```
 
-Notice the stack is written bottom-to-top: the last symbol in each list is
-the top, which is what `stack[-1]` reads in the simulator.
+Then it recursively builds NFA fragments:
 
-**Why this construction.** Top-down PDAs make the connection between
-productions and stack operations very concrete, which is the whole pedagogic
-point. We do not try to construct an LL(1) parse table — that's out of scope.
+| AST node | Fragment |
+|---|---|
+| Symbol | Two states with one labeled edge. |
+| Epsilon | Two states with one epsilon edge. |
+| Concat | Connect left accept to right start with epsilon. |
+| Union | New start branches to both fragments; both accepts join a new final. |
+| Star | New start has a bypass edge and an entry edge; child accept loops back. |
 
----
+Each compiled NFA has one start state and one final state. State numbering is
+reset on every compile, so the same regex gives stable state names.
 
-## PDA Simulation (Deterministic, LL(1)-style)
+## Subset Construction and Hopcroft Minimization
 
-**What it is.** A step-recording simulator that runs the PDA produced
-above. Each step is one configuration `(state, remaining_input, stack)` so
-the frontend can animate the trace.
+`subset_construction.py` converts an NFA dictionary to a minimized DFA.
 
-**The hard part: which production to apply when the top of the stack is a
-nonterminal with multiple rules.** A naive "always pick the first one"
-strategy rejects valid strings (e.g. picks `S -> aSb` when the input has no
-more `a`s and `S -> epsilon` was the right move). The simulator uses a
-lightweight LL(1)-style score:
+1. Build epsilon closures from the NFA transition list.
+2. Start with `epsilon_closure({start_state})`.
+3. Use BFS over reachable subsets of NFA states.
+4. For each subset and input symbol, compute
+   `epsilon_closure(move(subset, symbol))`.
+5. Add a trap state only if at least one transition would otherwise be
+   undefined.
+6. Mark every subset containing the NFA final state as accepting.
+7. Run Hopcroft partition refinement.
+8. Renumber the minimized DFA states in BFS order from the start state.
 
-| Score | Situation |
-|------:|-----------|
-|  4    | Production starts with a terminal that matches the next input char (a definite win for this step). |
-|  3    | Production is epsilon and the input is already empty (only this can lead to acceptance). |
-|  2    | Production starts with a nonterminal (deferred — we'll find out after expansion). |
-|  1    | Production is epsilon and input still remains (might help, but try anything else first). |
-|  0    | Production starts with a terminal that does NOT match the next input char (will fail). |
+Returned DFA shape:
 
-The highest-scoring production wins; ties keep the order the user wrote.
+```json
+{
+  "states": [0, 1],
+  "alphabet": ["a", "b"],
+  "transitions": {
+    "0": { "a": 1, "b": 0 }
+  },
+  "start_state": 0,
+  "accept_states": [1]
+}
+```
 
-**Main loop.**
+## DFA String Checker
 
-1. If the stack is `[Z]` and the input is empty -> jump to `q2` and accept.
-2. If the top of the stack equals the next input character and a matching
-   transition exists, pop the stack and consume that character.
-3. Otherwise apply the best-scoring production for the top nonterminal.
-4. If neither move applies, reject.
+`string_checker_dfa.py` walks the DFA from its start state through the input
+string.
 
-**Step limit.** The simulator runs at most `max_steps` iterations (default
-2000). If that limit is hit, the result includes an `error` field explaining
-that the grammar may have left recursion or unbounded expansion. This
-distinguishes "rejected by the grammar" from "ran out of steps".
+If a transition is missing, the checker rejects immediately and returns the
+path visited so far.
 
----
+Return shape:
 
-## Correctness, limits, and what to expect
+```json
+{
+  "valid": true,
+  "path": [0, 1, 2]
+}
+```
 
-- **Regex pipeline** (`thompson` + `subset_construction`): correct on all
-  supported regex forms. The DFA is minimal, so it matches the canonical
-  textbook diagram for examples like `(a|b)*abb` (4 states).
+The current `/regex` page now performs the same check locally in JavaScript
+against its hardcoded DFA objects.
 
-- **CFG pipeline** (`cfg_to_pda` + `string_checker_pda`): correct for
-  LL(1)-friendly grammars. The deterministic simulator with the lookahead
-  heuristic handles the canonical patterns:
-    - `S -> aSb | epsilon`              (a^n b^n)
-    - `S -> aA; A -> bA | epsilon`      (a b*)
-    - `S -> AB; A -> a; B -> b`         (concatenation across nonterminals)
-    - `S -> (S)S | epsilon`             (balanced parens, LL(1) form)
-  It will NOT solve genuinely ambiguous grammars such as `S -> SS | (S) | epsilon`
-  or grammars with left recursion (`S -> Sa | a`) — those need either
-  backtracking or grammar transformations (left-factoring, left-recursion
-  removal), both out of scope for this project. Left recursion that can
-  expand without consuming input will trigger the `max_steps` error.
+## NFA String Checker
+
+`string_checker_nfa.py` performs BFS over configurations:
+
+```text
+(state, input_position)
+```
+
+It reconstructs one accepting path if the string is accepted. If no accepting
+configuration is reachable, it reconstructs a path to the configuration that
+consumed the most input.
+
+This endpoint still exists as `POST /api/regex/nfa/check`, but the current
+`/regex` page does not display an NFA tab.
+
+## CFG -> PDA Construction
+
+`cfg_to_pda.py` parses grammar text and creates a top-down PDA.
+
+Accepted CFG forms:
+
+| Meaning | Forms |
+|---|---|
+| Arrow | `->`, Unicode right arrow, Unicode double arrow |
+| Alternative | `|` |
+| Epsilon | Greek epsilon/lambda variants, `^`, `epsilon`, `lambda`, `null`, `nil`, `eps`, `n`, or an empty alternative |
+
+One production is written per line. The first nonterminal encountered is the
+start symbol.
+
+The generated PDA has:
+
+- `q0`: start state
+- `q1`: work state
+- `q2`: accept state
+- a bottom marker of `Z`, or `$` if `Z` is already used by the grammar
+
+Push convention:
+
+```text
+push[0] becomes the top of the stack
+push[-1] becomes deepest among the pushed symbols
+```
+
+So `S -> aSb` is stored as `push = ["a", "S", "b"]`.
+
+## PDA Simulator
+
+`string_checker_pda.py` is now a BFS path finder, not a deterministic
+LL(1)-scoring simulator.
+
+It searches configurations of:
+
+```text
+(remaining_input, stack_tuple)
+```
+
+For each configuration it tries:
+
+1. terminal-matching transitions that consume the next input character
+2. production transitions that expand the stack top without consuming input
+
+It tracks parents so it can reconstruct one successful accepting path. If no
+accepting path is found, it returns a path to the configuration that consumed
+the most input. A `max_steps` cap, currently `20000`, prevents unbounded
+searches.
+
+Return shape:
+
+```json
+{
+  "valid": false,
+  "steps": [
+    {
+      "state": "q1",
+      "remaining_input": "abb",
+      "stack": ["Z", "S"],
+      "applied_idx": 3
+    }
+  ],
+  "error": "optional message if the step cap is reached"
+}
+```
+
+## CFG Page Flow
+
+The current `/cfg` page is implemented separately from the general PDA
+backend. It offers two fixed converted CFGs and uses `static/js/cfg.js` to:
+
+- render a compact READ/ACCEPT/REJECT flowchart
+- check strings with a built-in DFA specification for the selected language
+- animate flowchart transitions with marching edges
+- update a visual stack panel as characters are read and later popped
+
+This is why the CFG UI looks like a compact recognition flow rather than the
+full textbook three-state PDA generated by `cfg_to_pda.py`.
+
+## Practical Limits
+
+- Regex atoms are single alphanumeric characters.
+- Regex whitespace is stripped by the current frontend before selecting the
+  hardcoded DFA.
+- `+` means union only.
+- The backend PDA search can still run into very large searches for ambiguous
+  or left-recursive grammars.
+- The current CFG page is limited to the two preset languages in
+  `static/js/cfg.js`.

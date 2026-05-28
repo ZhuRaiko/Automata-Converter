@@ -1,92 +1,100 @@
 # Project Overview
 
-This project is a lightweight educational web app that demonstrates two
-independent pipelines used in automata theory and basic compiler design:
+This project is a lightweight educational web app for visualizing automata
+conversions and string acceptance.
 
-1. Regex → NFA → DFA → string acceptance
-2. CFG → PDA → PDA simulation with stack visualization
+The current browser UI has two pages:
 
-Both pipelines are provided as separate pages and do not share diagram panels
-or step viewers — they are intentionally independent for clarity and grading.
+1. Regex -> DFA
+2. Converted CFG -> compact PDA-style flow
 
-## How it works (high-level)
+The Python backend still contains the reusable algorithms for Thompson's
+construction, subset construction, DFA checking, CFG-to-PDA conversion, and
+PDA simulation. The current frontend no longer depends on those algorithms for
+its visualizations: both the regex DFA page and CFG flow page use hardcoded
+JavaScript specifications for the two preset languages.
 
-- The backend is a Flask app (`app.py`) that exposes JSON APIs. Each algorithm
-  is implemented in `algorithms/` as pure Python modules with clear docstrings.
-- The frontend uses plain HTML, CSS, and vanilla JavaScript. Diagrams are
-  rendered with Cytoscape.js loaded from a CDN.
-- The frontend sends POST requests to Flask endpoints carrying the user's
-  input (regex or CFG text). The backend returns NFA/DFA/PDA data structures
-  as JSON objects. The frontend converts those JSON objects to Cytoscape
-  elements and displays them.
+## How It Works
 
-## File map (important files)
+- `app.py` is the Flask application. It serves the three pages and exposes
+  JSON APIs for the algorithm modules.
+- `algorithms/` contains the Python implementations:
+  - `thompson.py`: regex -> NFA
+  - `subset_construction.py`: NFA -> minimized DFA
+  - `string_checker_dfa.py`: DFA string checker
+  - `string_checker_nfa.py`: BFS single-path NFA checker
+  - `cfg_to_pda.py`: general CFG -> PDA construction
+  - `string_checker_pda.py`: BFS PDA path finder
+- `templates/` contains the HTML pages.
+- `static/js/regex.js` powers the Regex -> DFA page.
+- `static/js/cfg.js` powers the converted CFG flow page.
+- Cytoscape.js is loaded from a CDN for graph rendering. No Node/npm build
+  step is needed.
 
+## Current User-Facing Dataflow
+
+```text
+[ Browser: /regex ]
+      |
+      | user chooses one of two preset regexes
+      v
+[ static/js/regex.js ]
+      |
+      +-- loads the matching hardcoded DFA object
+      +-- renders the DFA with Cytoscape
+      +-- checks strings locally and returns { valid, path }
+      +-- animates the DFA path
+
+
+[ Browser: /cfg ]
+      |
+      | user chooses one of two converted CFG presets
+      v
+[ static/js/cfg.js ]
+      |
+      +-- renders a compact PDA-style flowchart for the selected language
+      +-- checks strings with a matching built-in DFA specification
+      +-- animates READ states and a stack panel
 ```
+
+## Backend API Reference
+
+These endpoints are available from `app.py`:
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/regex/nfa` | Compile a regex to an NFA dictionary. |
+| `POST /api/regex/dfa` | Convert an NFA dictionary to a minimized DFA. |
+| `POST /api/regex/check` | Check a string against a DFA and return the visited path. |
+| `POST /api/regex/nfa/check` | Find one accepting NFA path, or the longest partial path on rejection. |
+| `POST /api/cfg/pda` | Convert CFG text to a PDA dictionary. |
+| `POST /api/cfg/check` | Run the PDA simulator and return a step trace. |
+
+Note: the current `/cfg` browser page does not call `/api/cfg/pda` or
+`/api/cfg/check`, and the current `/regex` browser page does not call the
+regex API endpoints. Those general-purpose backend endpoints remain available
+for testing, extension, and future UI work until they are removed.
+
+## Running Locally
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install flask
+python app.py
+```
+
+Open `http://127.0.0.1:5000/`.
+
+## File Map
+
+```text
 project/
-├─ app.py                # Flask app + routes
-├─ algorithms/           # Python algorithm implementations
-├─ templates/            # HTML pages (index, regex, cfg)
-├─ static/
-│  ├─ css/               # style.css, regex.css, cfg.css
-│  └─ js/                # regex.js, cfg.js
-└─ Documentation/        # explanatory markdown files
+|-- app.py
+|-- algorithms/
+|-- templates/
+|-- static/
+|   |-- css/
+|   `-- js/
+`-- Documentation/
 ```
-
-## Dataflow ASCII diagram
-
-The diagram below shows how user actions map to backend functions and
-frontend updates:
-
-```
-[ Browser (regex.html) ]
-      | POST /api/regex/nfa   (regex string)
-      v                       (JSON: NFA dict)
-[ Flask app -> thompson.compile_regex ]
-      |
-      | POST /api/regex/dfa   (NFA dict)
-      v                       (JSON: DFA dict)
-[ Flask app -> subset_construction ]
-      |
-      +-- frontend renders NFA and DFA (Cytoscape) --+
-      |                                              |
-  User clicks `Run` -> POST /api/regex/check          |
-      |                        (DFA + test string)    |
-      v                                              |
-[ Flask app -> string_checker_dfa ]                   |
-      |                                              |
-      +----> returns { valid, path } ------------------+
-             frontend animates DFA traversal using path
-
-
-[ Browser (cfg.html) ]
-      | POST /api/cfg/pda   (CFG text)
-      v                     (JSON: PDA dict)
-[ Flask app -> cfg_to_pda ]
-      |
-      +-- frontend renders PDA (Cytoscape) --+
-      |                                      |
-  User clicks `Run` -> POST /api/cfg/check   |
-      |                  (PDA + test string) |
-      v                                      |
-[ Flask app -> string_checker_pda ]          |
-      |                                      |
-      +----> returns { valid, steps } -------+
-             frontend animates PDA step-by-step
-             and updates stack panel in sync
-```
-
-## Running locally
-
-1. Install Flask: `pip install flask`
-2. Run the app: `python app.py`
-3. Open a browser at `http://127.0.0.1:5000/` and choose a mode.
-
-## Final notes for graders / instructors
-
-- The two modes are fully separated: `regex.html` and `cfg.html` each have
-  their own diagrams, JS, and step viewers.
-- The backend algorithms are intentionally commented and straightforward to
-  follow. Each Python file contains docstrings and inline comments.
-- The frontend contains comments explaining the event handlers and animation
-  flow. Cytoscape is used only via CDN so no Node/npm is needed.

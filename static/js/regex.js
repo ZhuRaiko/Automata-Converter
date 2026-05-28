@@ -4,9 +4,8 @@ regex.js
 Frontend for the Regex -> DFA page.
 
 What it does:
-- Sends one of the fixed regex presets to the backend, builds an internal NFA,
-  converts it to a minimized DFA, renders the DFA in Cytoscape, and animates
-  DFA traversals.
+- Loads one of the fixed regex presets, renders its hardcoded minimized DFA in
+  Cytoscape, and animates DFA traversals.
 - Active edges get a marching-ants effect (animated line-dash-offset) so the
   user can see the direction of travel. The consumed character flashes in the
   shared "Current char" indicator.
@@ -15,11 +14,11 @@ What it does:
 // ----------------------------- DOM handles ----------------------------- //
 const regexInput = document.getElementById('regex-input');
 const testInput  = document.getElementById('test-input');
-const convertBtn = document.getElementById('convert-btn');
 const runBtn     = document.getElementById('run-btn');
 const resetBtn   = document.getElementById('reset-btn');
 const stepsList  = document.getElementById('steps-list');
-const charDisplay = document.getElementById('char-display');
+const pendingChar = document.getElementById('pending-char');
+const verifiedChars = document.getElementById('verified-chars');
 const multiStringRows = document.querySelectorAll('#regex-multi-checker .multi-string-row');
 const regexChoiceButtons = document.querySelectorAll('.regex-choice');
 
@@ -28,9 +27,74 @@ const fixedRegexes = [
     '((101+111+101)+(1+0+11))(1+0+01)*(111+000+101)(1+0)*',
 ];
 
-// Persistent Cytoscape instances and the last computed automata.
+const hardcodedDfas = [
+    {
+        states: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        alphabet: ['a', 'b'],
+        transitions: {
+            '0': { a: 1, b: 2 },
+            '1': { a: 3, b: 4 },
+            '2': { a: 5, b: 3 },
+            '3': { a: 3, b: 3 },
+            '4': { a: 6, b: 3 },
+            '5': { a: 3, b: 6 },
+            '6': { a: 6, b: 7 },
+            '7': { a: 8, b: 7 },
+            '8': { a: 6, b: 9 },
+            '9': { a: 10, b: 10 },
+            '10': { a: 10, b: 10 },
+        },
+        start_state: 0,
+        accept_states: [10],
+        reject_states: [3],
+    },
+    {
+        states: [0, 1, 2, 3, 4, 5, 6, 7],
+        alphabet: ['0', '1'],
+        transitions: {
+            '0': { 0: 1, 1: 1 },
+            '1': { 0: 2, 1: 3 },
+            '2': { 0: 4, 1: 3 },
+            '3': { 0: 5, 1: 6 },
+            '4': { 0: 7, 1: 3 },
+            '5': { 0: 4, 1: 7 },
+            '6': { 0: 5, 1: 7 },
+            '7': { 0: 7, 1: 7 },
+        },
+        start_state: 0,
+        accept_states: [7],
+        reject_states: [],
+    },
+];
+
+const dfaPositions = [
+    {
+        0: { x: 80, y: 210 },
+        1: { x: 210, y: 110 },
+        2: { x: 210, y: 310 },
+        3: { x: 340, y: 210 },
+        4: { x: 470, y: 110 },
+        5: { x: 470, y: 310 },
+        6: { x: 600, y: 210 },
+        7: { x: 730, y: 90 },
+        8: { x: 860, y: 210 },
+        9: { x: 990, y: 210 },
+        10: { x: 1120, y: 210 },
+    },
+    {
+        0: { x: 90, y: 210 },
+        1: { x: 230, y: 210 },
+        2: { x: 370, y: 110 },
+        3: { x: 370, y: 310 },
+        4: { x: 510, y: 110 },
+        5: { x: 510, y: 310 },
+        6: { x: 650, y: 210 },
+        7: { x: 790, y: 210 },
+    },
+];
+
+// Persistent Cytoscape instance and the selected hardcoded automaton.
 let cyDfa = null;
-let currentNfa = null;
 let currentDfa = null;
 let currentTestString = '';
 let selectedRegexIndex = 0;
@@ -45,47 +109,55 @@ function addStep(text) {
     // Keep the newest step visible inside the scrollable step viewer.
     stepsList.scrollTop = stepsList.scrollHeight;
 }
-async function postJson(url, body) {
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-    });
-    return res.json();
-}
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 function showFixedRegex(index) {
+    stopAnts();
     selectedRegexIndex = index;
     regexInput.value = fixedRegexes[index];
     regexChoiceButtons.forEach(btn => {
         btn.classList.toggle('active', btn.dataset.regex === String(index));
     });
-    currentNfa = null;
-    currentDfa = null;
-    if (cyDfa) {
-        cyDfa.destroy();
-        cyDfa = null;
-    }
-    charDisplay.textContent = '-';
-    charDisplay.classList.remove('flash');
-    resetStringResults();
+    resetCharTape();
     clearSteps();
-    addStep('Ready. Choose a regex and click Convert.');
+    loadSelectedDfa();
 }
 
 regexChoiceButtons.forEach(btn => {
     btn.addEventListener('click', () => showFixedRegex(Number(btn.dataset.regex)));
 });
 
-/** Flash the current-character indicator. Removing+re-adding the class with
- *  a forced reflow restarts the keyframe animation each time. */
-function flashChar(ch) {
-    charDisplay.textContent = (ch === null || ch === undefined || ch === '') ? '-' : ch;
-    charDisplay.classList.remove('flash');
-    // Force reflow so the animation re-triggers next paint.
-    void charDisplay.offsetWidth;
-    charDisplay.classList.add('flash');
+function setPendingChar(ch, state = 'pending') {
+    pendingChar.textContent = (ch === null || ch === undefined || ch === '') ? '-' : ch;
+    pendingChar.className = `char-token ${state}${pendingChar.textContent === '-' ? ' empty' : ''}`;
+}
+
+function resetCharTape() {
+    verifiedChars.innerHTML = '';
+    setPendingChar(null, 'empty');
+}
+
+function addVerifiedChar(ch) {
+    if (ch === null || ch === undefined || ch === '') return;
+    const token = document.createElement('span');
+    token.className = 'char-token accepted';
+    token.textContent = ch;
+    verifiedChars.appendChild(token);
+}
+
+function showRejectedChar(ch) {
+    setPendingChar(ch, 'rejected');
+}
+
+function prepareCharTape(input) {
+    verifiedChars.innerHTML = '';
+    setPendingChar(input.length ? input[0] : null, input.length ? 'pending' : 'empty');
+}
+
+function advanceCharTape(input, index) {
+    addVerifiedChar(input[index]);
+    const next = input[index + 1];
+    setPendingChar(next, next === undefined ? 'empty' : 'pending');
 }
 
 function setStringResult(row, valid, value, error) {
@@ -114,7 +186,37 @@ function resetStringResults() {
 }
 
 async function checkRegexString(value) {
-    return postJson('/api/regex/check', { dfa: currentDfa, string: value });
+    if (!currentDfa) return { valid: false, path: [] };
+
+    const acceptStates = new Set(currentDfa.accept_states);
+    const rejectStates = new Set(currentDfa.reject_states || []);
+    const path = [currentDfa.start_state];
+    let current = currentDfa.start_state;
+    let rejectedAt = null;
+    let rejectedChar = null;
+
+    for (let i = 0; i < value.length; i++) {
+        const ch = value[i];
+        const next = currentDfa.transitions[String(current)] &&
+            currentDfa.transitions[String(current)][ch];
+        if (next === undefined) {
+            return { valid: false, path, rejectedAt: i, rejectedChar: ch };
+        }
+        current = next;
+        path.push(current);
+        if (rejectStates.has(current) && rejectedAt === null) {
+            rejectedAt = i;
+            rejectedChar = ch;
+            break;
+        }
+    }
+
+    return {
+        valid: acceptStates.has(current) && rejectedAt === null,
+        path,
+        rejectedAt,
+        rejectedChar,
+    };
 }
 
 async function checkStringRow(row) {
@@ -128,6 +230,24 @@ async function checkStringRow(row) {
 async function checkAllRegexStrings() {
     if (!currentDfa) return;
     await Promise.all(Array.from(multiStringRows).map(checkStringRow));
+}
+
+function loadSelectedDfa() {
+    currentDfa = hardcodedDfas[selectedRegexIndex];
+
+    const dfaEls = buildDfaElements(currentDfa);
+    if (cyDfa) cyDfa.destroy();
+    cyDfa = createCy('cy-dfa', dfaEls);
+
+    currentDfa.accept_states.forEach(s => {
+        const node = cyDfa.getElementById('d' + s);
+        if (node) node.addClass('accept');
+    });
+    resetViewport(cyDfa);
+
+    resetStringResults();
+    checkAllRegexStrings();
+    addStep('DFA visualization ready.');
 }
 
 // ----------------------------- Marching-ants animation ----------------------------- //
@@ -154,7 +274,11 @@ function stopAnts() {
 // ----------------------------- Cytoscape builders ----------------------------- //
 
 function buildDfaElements(dfa) {
-    const nodes = dfa.states.map(s => ({ data: { id: 'd' + s, label: String(s) } }));
+    const positions = dfaPositions[selectedRegexIndex];
+    const nodes = dfa.states.map(s => ({
+        data: { id: 'd' + s, label: String(s) },
+        position: positions[s],
+    }));
     const edges = [];
     for (const [state, trans] of Object.entries(dfa.transitions)) {
         const src = 'd' + state;
@@ -186,11 +310,6 @@ function buildDfaElements(dfa) {
  *      state becomes active).
  */
 function createCy(containerId, elements) {
-    // Prefer dagre when available (loaded from the CDN above); fall back to
-    // cose so the page still works offline / if the extension fails to load.
-    const layout = (typeof cytoscape.use === 'function' && window.dagre !== false)
-        ? { name: 'dagre', rankDir: 'LR', nodeSep: 30, rankSep: 60, animate: false }
-        : { name: 'cose', animate: true };
     return cytoscape({
         container: document.getElementById(containerId),
         elements: elements.nodes.concat(elements.edges),
@@ -200,7 +319,7 @@ function createCy(containerId, elements) {
                 'text-valign': 'center',
                 'text-halign': 'center',
                 'background-color': '#fff',
-                'border-color': '#333',
+                'border-color': '#25364d',
                 'border-width': 2,
                 'width': 40,
                 'height': 40,
@@ -211,8 +330,8 @@ function createCy(containerId, elements) {
                 'label': 'data(label)',
                 'curve-style': 'bezier',
                 'target-arrow-shape': 'triangle',
-                'line-color': '#888',
-                'target-arrow-color': '#888',
+                'line-color': '#8a97a8',
+                'target-arrow-color': '#8a97a8',
                 'text-rotation': 'autorotate',
                 'font-size': 10,
                 'transition-property': 'line-color, target-arrow-color, width',
@@ -223,19 +342,19 @@ function createCy(containerId, elements) {
                 'border-style': 'double',
             }},
             { selector: '.active', style: {
-                'background-color': '#ffe082',
-                'border-color': '#ffb300',
+                'background-color': '#e4f5f2',
+                'border-color': '#0f766e',
                 'border-width': 4,
             }},
             { selector: '.pulse', style: {
                 'width': 52,
                 'height': 52,
-                'border-color': '#ff9800',
+                'border-color': '#0f766e',
                 'border-width': 6,
             }},
             { selector: 'edge.traversing', style: {
-                'line-color': '#ff9800',
-                'target-arrow-color': '#ff9800',
+                'line-color': '#0f766e',
+                'target-arrow-color': '#0f766e',
                 'line-style': 'dashed',
                 'line-dash-pattern': [8, 4],
                 'width': 4,
@@ -253,8 +372,34 @@ function createCy(containerId, elements) {
                 'target-arrow-color': '#c62828',
             }},
         ],
-        layout: layout,
+        minZoom: 0.45,
+        maxZoom: 2.4,
+        wheelSensitivity: 0.18,
+        layout: { name: 'preset', fit: true, padding: 35 },
     });
+}
+
+function resetViewport(cy) {
+    if (!cy || cy.destroyed()) return;
+    cy.fit(cy.elements(), 35);
+}
+
+function keepElementInView(cy, ele) {
+    if (!cy || !ele || ele.empty()) return;
+    const container = cy.container();
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    const rbb = ele.renderedBoundingBox({ includeLabels: false });
+    const margin = 70;
+    const outOfView = (
+        rbb.x1 < margin ||
+        rbb.x2 > width - margin ||
+        rbb.y1 < margin ||
+        rbb.y2 > height - margin
+    );
+
+    if (!outOfView) return;
+    cy.animate({ center: { eles: ele }, duration: 260, easing: 'ease-in-out' });
 }
 
 // ----------------------------- Animation helpers ----------------------------- //
@@ -280,7 +425,7 @@ multiStringRows.forEach(row => {
     const simulateBtn = row.querySelector('.simulate-string-btn');
     input.addEventListener('input', () => checkStringRow(row));
     simulateBtn.addEventListener('click', async () => {
-        if (!currentDfa) { alert('Please convert a regex first.'); return; }
+        if (!currentDfa) loadSelectedDfa();
         testInput.value = input.value || '';
         currentTestString = testInput.value;
         await checkStringRow(row);
@@ -288,57 +433,24 @@ multiStringRows.forEach(row => {
     });
 });
 
-// ----------------------------- Convert ----------------------------- //
-
-convertBtn.addEventListener('click', async () => {
-    const regex = regexInput.value.replace(/\s+/g, '');
-    if (!regex) { alert('Please enter a regular expression.'); return; }
-
-    clearSteps();
-    addStep('Tokenizing and compiling regex...');
-
-    const nfaResp = await postJson('/api/regex/nfa', { regex });
-    if (nfaResp.error) { addStep('Error: ' + nfaResp.error); return; }
-    currentNfa = nfaResp;
-    addStep('Internal NFA constructed.');
-
-    addStep('Converting NFA to DFA (subset construction + minimization)...');
-    const dfaResp = await postJson('/api/regex/dfa', { nfa: currentNfa });
-    if (dfaResp.error) { addStep('Error: ' + dfaResp.error); return; }
-    currentDfa = dfaResp;
-    addStep('Minimal DFA constructed.');
-
-    const dfaEls = buildDfaElements(currentDfa);
-
-    if (cyDfa) cyDfa.destroy();
-    cyDfa = createCy('cy-dfa', dfaEls);
-
-    // Mark accept states.
-    currentDfa.accept_states.forEach(s => {
-        const node = cyDfa.getElementById('d' + s);
-        if (node) node.addClass('accept');
-    });
-
-    await checkAllRegexStrings();
-    addStep('DFA diagram rendered.');
-});
-
 // ----------------------------- Run ----------------------------- //
 
 runBtn.addEventListener('click', async () => {
-    if (!currentDfa) { alert('Please convert a regex first.'); return; }
+    if (!currentDfa) loadSelectedDfa();
     const s = testInput.value || '';
     currentTestString = s;
     await runDfa(s);
 });
 
 async function runDfa(s) {
-    const res = await postJson('/api/regex/check', { dfa: currentDfa, string: s });
+    const res = await checkRegexString(s);
     if (res.error) { addStep('Error: ' + res.error); return; }
     const path = res.path || [];
     const valid = !!res.valid;
+    const rejectedAt = res.rejectedAt;
 
     cyDfa.elements().removeClass('active traversing valid invalid pulse');
+    prepareCharTape(currentTestString);
     startAnts();
 
     const delay = 700;
@@ -352,21 +464,27 @@ async function runDfa(s) {
         if (node) {
             node.addClass('active');
             pulseNode(node);
+            keepElementInView(cyDfa, node);
         }
 
         // Flash the just-consumed character and light up the edge for it.
         if (i < currentTestString.length) {
             const ch = currentTestString[i];
-            flashChar(ch);
             if (i + 1 < path.length) {
                 const nextId = 'd' + path[i + 1];
                 findEdge(cyDfa, nodeId, nextId, ch).addClass('traversing');
             }
+            if (rejectedAt === i) {
+                showRejectedChar(ch);
+            } else {
+                advanceCharTape(currentTestString, i);
+            }
         } else {
-            charDisplay.textContent = '-';
+            setPendingChar(null, 'empty');
         }
 
         await sleep(delay);
+        if (rejectedAt === i) break;
     }
 
     cyDfa.edges('.traversing').removeClass('traversing');
@@ -383,14 +501,15 @@ async function runDfa(s) {
 
 // ----------------------------- Reset ----------------------------- //
 
-resetBtn.addEventListener('click', () => {
+resetBtn.addEventListener('click', async () => {
     stopAnts();
     if (cyDfa) cyDfa.elements().removeClass('active traversing valid invalid pulse');
-    charDisplay.textContent = '-';
-    charDisplay.classList.remove('flash');
+    resetViewport(cyDfa);
+    resetCharTape();
     resetStringResults();
+    await checkAllRegexStrings();
     clearSteps();
-    addStep('Reset complete.');
+    addStep('Reset complete. DFA visualization is ready.');
 });
 
 // ----------------------------- Init ----------------------------- //

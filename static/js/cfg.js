@@ -15,11 +15,12 @@ What it does:
 */
 
 const cfgInput = document.getElementById('cfg-input');
-const cfgConvertBtn = document.getElementById('cfg-convert-btn');
 const cfgRunBtn = document.getElementById('cfg-run-btn');
 const cfgResetBtn = document.getElementById('cfg-reset-btn');
 const cfgStepsList = document.getElementById('cfg-steps-list');
 const stackContents = document.getElementById('stack-contents');
+const cfgPendingChar = document.getElementById('cfg-pending-char');
+const cfgVerifiedChars = document.getElementById('cfg-verified-chars');
 const cfgMultiStringRows = document.querySelectorAll('#cfg-multi-checker .multi-string-row');
 const cfgChoiceButtons = document.querySelectorAll('.cfg-choice');
 const STACK_BOTTOM = '\u0394';
@@ -54,7 +55,7 @@ function resetCurrentCfg() {
     lastStack = [];
     resetCfgStringResults();
     clearCfgSteps();
-    addCfgStep('Ready. Choose a CFG and click Convert.');
+    addCfgStep('Ready. Choose a CFG.');
 }
 
 function showConvertedCfg(index) {
@@ -63,7 +64,7 @@ function showConvertedCfg(index) {
     cfgChoiceButtons.forEach(btn => {
         btn.classList.toggle('active', btn.dataset.cfg === String(index));
     });
-    resetCurrentCfg();
+    loadSelectedCfgFlow();
 }
 
 cfgChoiceButtons.forEach(btn => {
@@ -79,6 +80,39 @@ function addCfgStep(text) {
     li.textContent = text;
     cfgStepsList.appendChild(li);
     cfgStepsList.scrollTop = cfgStepsList.scrollHeight;
+}
+
+function setCfgPendingChar(ch, state = 'pending') {
+    cfgPendingChar.textContent = (ch === null || ch === undefined || ch === '') ? '-' : ch;
+    cfgPendingChar.className = `char-token ${state}${cfgPendingChar.textContent === '-' ? ' empty' : ''}`;
+}
+
+function resetCfgCharTape() {
+    cfgVerifiedChars.innerHTML = '';
+    setCfgPendingChar(null, 'empty');
+}
+
+function prepareCfgCharTape(input) {
+    cfgVerifiedChars.innerHTML = '';
+    setCfgPendingChar(input.length ? input[0] : null, input.length ? 'pending' : 'empty');
+}
+
+function addCfgVerifiedChar(ch) {
+    if (ch === null || ch === undefined || ch === '') return;
+    const token = document.createElement('span');
+    token.className = 'char-token accepted';
+    token.textContent = ch;
+    cfgVerifiedChars.appendChild(token);
+}
+
+function advanceCfgCharTape(input, index) {
+    addCfgVerifiedChar(input[index]);
+    const next = input[index + 1];
+    setCfgPendingChar(next, next === undefined ? 'empty' : 'pending');
+}
+
+function showCfgRejectedChar(ch) {
+    setCfgPendingChar(ch, 'rejected');
 }
 
 function setCfgStringResult(row, valid, value, error) {
@@ -159,7 +193,7 @@ function createCy(containerId, elements) {
                 'text-valign': 'center',
                 'text-halign': 'center',
                 'background-color': '#fff',
-                'border-color': '#333',
+                'border-color': '#25364d',
                 'border-width': 2,
                 'shape': 'data(shape)',
                 'width': 'data(w)',
@@ -173,8 +207,8 @@ function createCy(containerId, elements) {
                 'label': 'data(label)',
                 'curve-style': 'bezier',
                 'target-arrow-shape': 'triangle',
-                'line-color': '#888',
-                'target-arrow-color': '#888',
+                'line-color': '#8a97a8',
+                'target-arrow-color': '#8a97a8',
                 'text-rotation': 'none',
                 'text-background-color': '#fff',
                 'text-background-opacity': 0.9,
@@ -184,8 +218,8 @@ function createCy(containerId, elements) {
                 'transition-duration': 150,
             }},
             { selector: '.active', style: {
-                'background-color': '#ffe082',
-                'border-color': '#ffb300',
+                'background-color': '#e4f5f2',
+                'border-color': '#0f766e',
                 'border-width': 4,
             }},
             { selector: '.accept', style: {
@@ -195,12 +229,12 @@ function createCy(containerId, elements) {
             { selector: '.pulse', style: {
                 'width': 56,
                 'height': 56,
-                'border-color': '#ff9800',
+                'border-color': '#0f766e',
                 'border-width': 6,
             }},
             { selector: 'edge.traversing', style: {
-                'line-color': '#ff9800',
-                'target-arrow-color': '#ff9800',
+                'line-color': '#0f766e',
+                'target-arrow-color': '#0f766e',
                 'line-style': 'dashed',
                 'line-dash-pattern': [8, 4],
                 'width': 4,
@@ -218,8 +252,34 @@ function createCy(containerId, elements) {
                 'target-arrow-color': '#c62828',
             }},
         ],
+        minZoom: 0.45,
+        maxZoom: 2.4,
+        wheelSensitivity: 0.18,
         layout: { name: 'preset', fit: true, padding: 35 },
     });
+}
+
+function resetViewport(cy) {
+    if (!cy || cy.destroyed()) return;
+    cy.fit(cy.elements(), 35);
+}
+
+function keepElementInView(cy, ele) {
+    if (!cy || !ele || ele.empty()) return;
+    const container = cy.container();
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    const rbb = ele.renderedBoundingBox({ includeLabels: false });
+    const margin = 70;
+    const outOfView = (
+        rbb.x1 < margin ||
+        rbb.x2 > width - margin ||
+        rbb.y1 < margin ||
+        rbb.y2 > height - margin
+    );
+
+    if (!outOfView) return;
+    cy.animate({ center: { eles: ele }, duration: 260, easing: 'ease-in-out' });
 }
 
 function pulseNode(node) {
@@ -233,8 +293,8 @@ function edgeById(cy, id) {
     return cy.getElementById(id);
 }
 
-function addFlowStep(steps, node, edge, stack, text) {
-    steps.push({ node, edge, stack: stack.slice(), text });
+function addFlowStep(steps, node, edge, stack, text, char = null, rejected = false) {
+    steps.push({ node, edge, stack: stack.slice(), text, char, rejected });
 }
 
 function dfaSpec(index) {
@@ -246,7 +306,7 @@ function dfaSpec(index) {
             reject: [3],
             states: [
                 [0, 80, 210], [1, 210, 110], [2, 210, 310], [3, 340, 210],
-                [4, 470, 110], [5, 470, 310], [6, 600, 210], [7, 730, 210],
+                [4, 470, 110], [5, 470, 310], [6, 600, 210], [7, 730, 90],
                 [8, 860, 210], [9, 990, 210], [10, 1120, 210],
             ],
             transitions: {
@@ -321,7 +381,12 @@ function buildFlowchartElements(index) {
 
         const trans = spec.transitions[state] || {};
         for (const [symbol, target] of Object.entries(trans)) {
-            edges.push(flowEdge(`e_read_read_${state}_${symbol}`, `read_${state}`, `read_${target}`, symbol));
+            edges.push(flowEdge(
+                `e_read_read_${state}_${symbol}`,
+                `read_${state}`,
+                `read_${target}`,
+                symbol
+            ));
         }
 
         if (spec.accept.includes(state)) {
@@ -346,12 +411,20 @@ function buildFlowSteps(s, valid) {
     for (const ch of s) {
         const next = spec.transitions[state] && spec.transitions[state][ch];
         if (next === undefined) {
-            addFlowStep(steps, `read_${state}`, null, stack, `No flow for "${ch}"; REJECT`);
+            addFlowStep(steps, `read_${state}`, null, stack, `No flow for "${ch}"; REJECT`, ch, true);
             return steps;
         }
 
         stack.push(ch);
-        addFlowStep(steps, `read_${next}`, `e_read_read_${state}_${ch}`, stack, `Read "${ch}"`);
+        addFlowStep(
+            steps,
+            `read_${next}`,
+            `e_read_read_${state}_${ch}`,
+            stack,
+            `Read "${ch}"`,
+            ch,
+            rejectStates.has(next)
+        );
         state = next;
         if (rejectStates.has(state)) return steps;
     }
@@ -406,35 +479,35 @@ function renderStack(stack) {
     lastStack = stack.slice();
 }
 
-// ----------------------------- Convert ----------------------------- //
+// ----------------------------- Load selected flow ----------------------------- //
 
-cfgConvertBtn.addEventListener('click', async () => {
+async function loadSelectedCfgFlow() {
     const cfgText = cfgInput.value.trim();
-    if (!cfgText) {
-        alert('Please enter CFG rules.');
-        return;
-    }
+    if (!cfgText) return;
 
     clearCfgSteps();
-    addCfgStep('Loading hardcoded PDA flow from the selected regular language...');
+    stopAnts();
+    addCfgStep('Loading hardcoded PDA flow for the selected regular language...');
     currentPda = { selected: selectedCfgIndex };
+    currentSteps = null;
+    stackContents.innerHTML = 'Empty Stack';
+    lastStack = [];
+    resetCfgCharTape();
 
     const els = buildFlowchartElements(selectedCfgIndex);
     if (cyPda) cyPda.destroy();
     cyPda = createCy('cy-pda', els);
     markAcceptNodes();
+    resetViewport(cyPda);
 
     addCfgStep('Compact PDA rendered.');
     await checkAllCfgStrings();
-});
+}
 
 // ----------------------------- Run (animate) ----------------------------- //
 
 cfgRunBtn.addEventListener('click', async () => {
-    if (!currentPda) {
-        alert('Please convert CFG first.');
-        return;
-    }
+    if (!currentPda) await loadSelectedCfgFlow();
     const s = document.getElementById('cfg-test-input').value || '';
     await runPda(s);
 });
@@ -447,10 +520,12 @@ async function runPda(s) {
 
     cyPda.elements().removeClass('active traversing valid invalid pulse');
     lastStack = [];
+    prepareCfgCharTape(s);
     startAnts();
 
     const delay = 700;
     let currentActiveId = null;
+    let consumedIndex = 0;
 
     for (let i = 0; i < currentSteps.length; i++) {
         const step = currentSteps[i];
@@ -465,9 +540,20 @@ async function runPda(s) {
             currentActiveId = step.node;
         }
         const activeNode = cyPda.getElementById(step.node);
-        if (activeNode) pulseNode(activeNode);
+        if (activeNode) {
+            pulseNode(activeNode);
+            keepElementInView(cyPda, activeNode);
+        }
 
         renderStack(step.stack);
+        if (step.char !== null && step.char !== undefined) {
+            if (step.rejected) {
+                showCfgRejectedChar(step.char);
+            } else {
+                advanceCfgCharTape(s, consumedIndex);
+            }
+            consumedIndex += 1;
+        }
         addCfgStep(`${step.text}; stack: [${(step.stack || []).join(',')}]`);
 
         await sleep(delay);
@@ -488,10 +574,7 @@ cfgMultiStringRows.forEach(row => {
     const simulateBtn = row.querySelector('.simulate-string-btn');
     input.addEventListener('input', () => checkCfgStringRow(row));
     simulateBtn.addEventListener('click', async () => {
-        if (!currentPda) {
-            alert('Please convert CFG first.');
-            return;
-        }
+        if (!currentPda) await loadSelectedCfgFlow();
         document.getElementById('cfg-test-input').value = input.value || '';
         await checkCfgStringRow(row);
         await runPda(input.value || '');
@@ -500,14 +583,17 @@ cfgMultiStringRows.forEach(row => {
 
 // ----------------------------- Reset ----------------------------- //
 
-cfgResetBtn.addEventListener('click', () => {
+cfgResetBtn.addEventListener('click', async () => {
     stopAnts();
     if (cyPda) cyPda.elements().removeClass('active traversing valid invalid pulse');
+    resetViewport(cyPda);
     stackContents.innerHTML = 'Empty Stack';
     lastStack = [];
+    resetCfgCharTape();
     resetCfgStringResults();
+    await checkAllCfgStrings();
     clearCfgSteps();
-    addCfgStep('Reset complete.');
+    addCfgStep('Reset complete. PDA flow is ready.');
 });
 
 // Initial state

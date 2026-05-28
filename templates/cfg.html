@@ -55,7 +55,6 @@
             </div>
 
             <div class="controls">
-                <button id="cfg-convert-btn">Convert</button>
                 <button id="cfg-run-btn">Run</button>
                 <button id="cfg-reset-btn">Reset</button>
             </div>
@@ -63,7 +62,16 @@
 
         <!-- Diagram + Stack Panel -->
         <section id="cfg-diagram-section" class="panel horizontal">
-            <div id="cy-pda" class="cytoscape-container"></div>
+            <div class="cfg-visual-main">
+                <div id="cfg-current-char" class="current-char">
+                    <span class="char-label">Current char</span>
+                    <div id="cfg-char-tape" class="char-tape" aria-live="polite">
+                        <div id="cfg-pending-char" class="char-token pending empty">-</div>
+                        <div id="cfg-verified-chars" class="verified-chars"></div>
+                    </div>
+                </div>
+                <div id="cy-pda" class="cytoscape-container"></div>
+            </div>
             <aside id="stack-panel">
                 <h3>Stack</h3>
                 <div id="stack-contents" class="stack-contents">Empty Stack</div>

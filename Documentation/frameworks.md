@@ -1,54 +1,48 @@
 # Frameworks and Libraries
 
-This project purposefully uses a minimal set of frameworks and libraries to
-keep the code easy to understand, run, and grade. Below are the chosen
-components and reasons for their selection.
+The project uses a deliberately small stack.
 
-## Flask (Backend)
+## Flask
 
-- Role: Lightweight Python web framework used to expose simple REST endpoints
-  that run the algorithms and return JSON to the frontend.
-- Why Flask:
-  - Very small learning curve and minimal boilerplate.
-  - Ideal for single-file run: `python app.py` starts the whole application.
-  - Sufficient for serving a small number of HTML pages and JSON APIs used by
-    the frontend.
-- Alternatives considered: Django (too heavy for a small teaching project),
-  FastAPI (nice, but adds complexity and dependency for students unfamiliar
-  with ASGI).
+Flask serves the HTML pages and exposes JSON endpoints from `app.py`.
 
-## Cytoscape.js (Frontend diagrams)
+It is used because:
 
-- Role: Render directed graphs (states and transitions) for NFAs, DFAs and
-  PDAs in the browser, and provide an API for programmatic highlighting and
-  basic animation.
-- Why Cytoscape.js:
-  - Designed for graph visualization with a small, easy-to-use API.
-  - Loads from CDN — no Node/npm required.
-  - Offers graph layout algorithms (e.g., `cose`) useful for automatic layout.
-- Alternatives considered: D3.js (more general-purpose but requires much more
-  work to draw nodes/edges and handle force layouts), mxGraph (heavier).
+- `python app.py` starts the whole application
+- the route code is easy to read
+- it is enough for a small educational web app
+- it avoids heavier framework structure
 
-## Plain HTML + CSS + Vanilla JavaScript
+The only Python dependency is Flask.
 
-- Role: Build the web UI without front-end build tools.
-- Why plain JS/CSS:
-  - Matches the requirement to avoid Node.js, npm, React, or Vite.
-  - Keeps the project runnable with only Python installed.
-  - Teaches students how frontend and backend communicate via JSON APIs.
+## Cytoscape.js
 
-## Notes on dependency management
+Cytoscape.js renders the DFA diagrams and the compact CFG flowcharts.
 
-- The only Python dependency is `Flask` (install with `pip install flask`).
-- Cytoscape.js is loaded from a CDN URL in the HTML templates — no local
-  package installation is required.
+It is used because:
 
-## How the pieces fit together
+- it handles graph nodes and directed edges cleanly
+- elements can be highlighted during animation
+- it works from a CDN
+- it supports both automatic graph layouts and fixed-position flowcharts
 
-- Flask runs the algorithms when the frontend POSTs JSON requests.
-- The frontend (vanilla JS) fetches JSON, constructs Cytoscape graph elements,
-  and uses Cytoscape's API to render nodes/edges and apply highlight classes
-  during animations.
+The regex page uses Cytoscape for the minimized DFA. The CFG page uses it for
+the preset READ/ACCEPT/REJECT flow diagrams.
 
-This minimal-stack approach was chosen to maximize portability and clarity for
-academic use.
+## Vanilla HTML, CSS, And JavaScript
+
+The UI avoids frontend build tools. This keeps setup simple:
+
+```bash
+pip install flask
+python app.py
+```
+
+No Node.js, npm, webpack, or Vite step is required.
+
+## How The Pieces Fit
+
+- Flask serves `/`, `/regex`, and `/cfg`.
+- The regex frontend loads a hardcoded DFA object and renders it directly.
+- The CFG frontend renders one of two preset flows in JavaScript.
+- The backend CFG/PDA APIs remain available for extension and direct testing.

@@ -1,8 +1,88 @@
-/* cfg.css - styles specific to CFG / PDA page */
+/* CFG / PDA page */
 
 #cfg-diagram-section {
     display: flex;
     gap: 12px;
+}
+
+.cfg-visual-main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+#cfg-current-char {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 10px 0;
+    font-weight: 800;
+    flex-wrap: wrap;
+}
+
+.char-label {
+    color: #25364d;
+    white-space: nowrap;
+}
+
+.char-tape {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 38px;
+    min-width: min(100%, 360px);
+    padding: 4px 6px;
+    border-radius: 8px;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    overflow-x: auto;
+}
+
+.verified-chars {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.char-token {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 32px;
+    width: 32px;
+    height: 28px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--surface-soft);
+    color: #4d5d73;
+    font-size: 0.95rem;
+    font-weight: 800;
+    text-align: center;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.char-token.pending {
+    background: var(--amber-soft);
+    border-color: #f1d27a;
+    color: var(--amber);
+}
+
+.char-token.accepted {
+    border-color: #afe5c1;
+    background: var(--green-soft);
+    color: var(--green);
+}
+
+.char-token.rejected {
+    border-color: #ffc4bf;
+    background: var(--red-soft);
+    color: var(--red);
+}
+
+.char-token.empty {
+    background: #eef2f7;
+    border-color: var(--border);
+    color: #8b98aa;
 }
 
 .cfg-switcher {
@@ -13,67 +93,72 @@
 }
 
 .cfg-choice {
-    min-height: 44px;
+    min-height: 48px;
     margin: 0;
-    border: 1px solid #dbe2ee;
-    background: #f7f9fc;
-    color: #4d5d73;
-    font-weight: 700;
+    border: 1px solid var(--border);
+    background: var(--surface-soft);
+    color: #3d4f66;
+    font-weight: 800;
     text-align: left;
+    line-height: 1.25;
+}
+
+.cfg-choice:hover {
+    border-color: #9fc3ff;
+    background: #eff5ff;
 }
 
 .cfg-choice.active {
-    border-color: #1976d2;
-    background: #1976d2;
-    color: #fff;
+    border-color: var(--primary);
+    background: #eef4ff;
+    color: var(--primary-dark);
+    box-shadow: inset 3px 0 0 var(--primary);
 }
 
 #cfg-input[readonly] {
     min-height: 240px;
     resize: vertical;
     font-family: Consolas, Monaco, "Courier New", monospace;
+    background: #fbfdff;
+    color: #25364d;
 }
 
 #cy-pda {
-    flex: 1 1 auto;
     height: 460px;
-    border-radius: 6px;
-    border: 1px solid #e0e0e0;
 }
 
 #stack-contents {
     display: flex;
-    /* The JS already passes the stack with the top symbol first, so we render
-       top-to-bottom in normal column order. (Previously this was column-reverse
-       AND the JS also reversed — the two cancelled out and the stack rendered
-       upside-down with Z appearing on top.) */
     flex-direction: column;
     gap: 6px;
 }
 
 .stack-box {
-    padding: 6px 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background: white;
+    padding: 7px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    color: #25364d;
     text-align: center;
+    font-weight: 800;
     transition: background 0.2s ease-out, border-color 0.2s ease-out;
 }
 
-/* Stack top highlight. The .pop and .push classes are added transiently so
-   the top box flashes when it changes. */
 .stack-top {
-    border-color: #1976d2;
-    box-shadow: 0 0 8px rgba(25, 118, 210, 0.18);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(36, 84, 214, 0.12);
 }
+
 @keyframes stack-push {
-    0%   { background: rgba(46, 125, 50, 0.85); transform: scale(1.25); }
+    0%   { background: rgba(35, 138, 73, 0.85); transform: scale(1.16); }
     100% { background: white;                   transform: scale(1.0); }
 }
+
 @keyframes stack-pop {
-    0%   { background: rgba(198, 40, 40, 0.85); transform: scale(1.25); }
+    0%   { background: rgba(196, 61, 54, 0.85); transform: scale(1.16); }
     100% { background: white;                   transform: scale(1.0); }
 }
+
 .stack-box.push { animation: stack-push 0.5s ease-out; }
 .stack-box.pop  { animation: stack-pop  0.5s ease-out; }
 
