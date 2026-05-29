@@ -24,7 +24,7 @@ Project name, team members, course, date, and app link.
 ### 4. Architecture
 
 - Flask backend
-- pure Python algorithm modules
+- `(IRRELEVANT)` pure Python algorithm modules
 - vanilla JavaScript frontend
 - Cytoscape.js for graph rendering
 - no Node/npm build step
@@ -40,7 +40,7 @@ Project name, team members, course, date, and app link.
 
 Be clear about the current split:
 
-- Backend: general CFG-to-PDA and BFS PDA simulator are available in Python.
+- Backend: `(IRRELEVANT)` general CFG-to-PDA and BFS PDA simulator are available in Python.
 - Frontend: current `/cfg` page uses two fixed converted CFG presets and a
   compact JavaScript flowchart for those languages.
 
@@ -84,7 +84,7 @@ the minimized DFA display and animation.
 
 **Does the CFG page parse any grammar?**  
 Not in the current UI. It shows two fixed converted CFG examples. The backend
-still has general CFG-to-PDA and PDA simulation endpoints.
+still has `(IRRELEVANT)` general CFG-to-PDA and PDA simulation endpoints.
 
 **What changed in the PDA simulator?**  
 The Python simulator now uses BFS over configurations instead of the older

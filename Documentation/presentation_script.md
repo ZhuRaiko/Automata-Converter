@@ -33,13 +33,13 @@ build step."
 "For the current regular-expression page, the two preset languages have
 hardcoded minimized DFA objects in JavaScript. The frontend checks the string
 locally, records the path through the DFA, and uses that path for animation.
-The backend still contains Thompson construction and subset construction code,
+The backend still contains `(IRRELEVANT)` Thompson construction and subset construction code,
 but the current UI no longer depends on it."
 
 ## Slide 6: CFG/PDA Code
 
 "For the CFG side, there are two things to distinguish. The backend still has
-general CFG-to-PDA conversion and a BFS PDA simulator. The current browser page
+`(IRRELEVANT)` general CFG-to-PDA conversion and a BFS PDA simulator. The current browser page
 is more focused: it uses two fixed converted CFG presets and renders compact
 recognition flows for those languages."
 
@@ -63,7 +63,7 @@ tracks input progress."
 "The regex parser is intentionally small: single-character atoms, union,
 concatenation, star, grouping, and epsilon. The plus sign means union, not
 Kleene-plus. The current CFG page is preset-based, so it is not an arbitrary
-grammar editor in the browser, although the backend algorithm modules remain
+grammar editor in the browser, although the `(IRRELEVANT)` backend algorithm modules remain
 available."
 
 ## Slide 10: Close

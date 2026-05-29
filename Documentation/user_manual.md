@@ -110,20 +110,16 @@ During a run:
 - on an accepting run, the flow reaches an ACCEPT node
 - rejected runs turn the diagram red
 
-## Backend CFG/PDA APIs
+## Removed / Irrelevant Backend CFG/PDA APIs
 
-The backend still exposes general CFG/PDA endpoints:
+The current app no longer exposes these endpoints from `app.py`. They are
+irrelevant to the visible frontend workflow:
 
-- `POST /api/cfg/pda`
-- `POST /api/cfg/check`
+- `(IRRELEVANT) POST /api/cfg/pda`
+- `(IRRELEVANT) POST /api/cfg/check`
 
-Those endpoints parse arbitrary CFG text and run the BFS PDA simulator. The
-current `/cfg` page does not call them; it uses the fixed JavaScript flow in
-`static/js/cfg.js`.
-
-The backend also still has regex conversion/checking endpoints, but the
-current `/regex` page uses the hardcoded DFA data in `static/js/regex.js`
-instead.
+The current `/cfg` page uses the fixed JavaScript flow in `static/js/cfg.js`.
+The current `/regex` page uses hardcoded DFA data in `static/js/regex.js`.
 
 ## Troubleshooting
 

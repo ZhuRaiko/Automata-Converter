@@ -8,23 +8,23 @@ The current browser UI has two pages:
 1. Regex -> DFA
 2. Converted CFG -> compact PDA-style flow
 
-The Python backend still contains the reusable algorithms for Thompson's
-construction, subset construction, DFA checking, CFG-to-PDA conversion, and
-PDA simulation. The current frontend no longer depends on those algorithms for
-its visualizations: both the regex DFA page and CFG flow page use hardcoded
+The Python backend still contains `(IRRELEVANT)` reusable algorithm modules.
+The current frontend no longer depends on those algorithms for its
+visualizations: both the regex DFA page and CFG flow page use hardcoded
 JavaScript specifications for the two preset languages.
 
 ## How It Works
 
-- `app.py` is the Flask application. It serves the three pages and exposes
-  JSON APIs for the algorithm modules.
-- `algorithms/` contains the Python implementations:
-  - `thompson.py`: regex -> NFA
-  - `subset_construction.py`: NFA -> minimized DFA
-  - `string_checker_dfa.py`: DFA string checker
-  - `string_checker_nfa.py`: BFS single-path NFA checker
-  - `cfg_to_pda.py`: general CFG -> PDA construction
-  - `string_checker_pda.py`: BFS PDA path finder
+- `app.py` is the Flask application. It serves the three pages for the current
+  hardcoded frontend workflow.
+- `algorithms/` contains Python implementations that are currently irrelevant
+  to the visible hardcoded frontend workflow:
+  - `(IRRELEVANT) thompson.py`: regex -> NFA
+  - `(IRRELEVANT) subset_construction.py`: NFA -> minimized DFA
+  - `(IRRELEVANT) string_checker_dfa.py`: DFA string checker
+  - `(IRRELEVANT) string_checker_nfa.py`: BFS single-path NFA checker
+  - `(IRRELEVANT) cfg_to_pda.py`: general CFG -> PDA construction
+  - `(IRRELEVANT) string_checker_pda.py`: BFS PDA path finder
 - `templates/` contains the HTML pages.
 - `static/js/regex.js` powers the Regex -> DFA page.
 - `static/js/cfg.js` powers the converted CFG flow page.
@@ -57,23 +57,22 @@ JavaScript specifications for the two preset languages.
       +-- animates READ states, active transitions, and input progress
 ```
 
-## Backend API Reference
+## Removed / Irrelevant Backend API Reference
 
-These endpoints are available from `app.py`:
+These endpoints are no longer available from the current `app.py`. They are
+listed only as irrelevant legacy references:
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /api/regex/nfa` | Compile a regex to an NFA dictionary. |
-| `POST /api/regex/dfa` | Convert an NFA dictionary to a minimized DFA. |
-| `POST /api/regex/check` | Check a string against a DFA and return the visited path. |
-| `POST /api/regex/nfa/check` | Find one accepting NFA path, or the longest partial path on rejection. |
-| `POST /api/cfg/pda` | Convert CFG text to a PDA dictionary. |
-| `POST /api/cfg/check` | Run the PDA simulator and return a step trace. |
+| `(IRRELEVANT) POST /api/regex/nfa` | Compile a regex to an NFA dictionary. |
+| `(IRRELEVANT) POST /api/regex/dfa` | Convert an NFA dictionary to a minimized DFA. |
+| `(IRRELEVANT) POST /api/regex/check` | Check a string against a DFA and return the visited path. |
+| `(IRRELEVANT) POST /api/regex/nfa/check` | Find one accepting NFA path, or the longest partial path on rejection. |
+| `(IRRELEVANT) POST /api/cfg/pda` | Convert CFG text to a PDA dictionary. |
+| `(IRRELEVANT) POST /api/cfg/check` | Run the PDA simulator and return a step trace. |
 
-Note: the current `/cfg` browser page does not call `/api/cfg/pda` or
-`/api/cfg/check`, and the current `/regex` browser page does not call the
-regex API endpoints. Those general-purpose backend endpoints remain available
-for testing, extension, and future UI work until they are removed.
+Note: the current `/cfg` and `/regex` browser pages use hardcoded JavaScript
+data and do not call these legacy API routes.
 
 ## Running Locally
 

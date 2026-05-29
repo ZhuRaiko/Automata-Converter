@@ -11,40 +11,42 @@ The app has two user-facing pages:
 - `/cfg`: select one of two read-only converted CFG presets, render a compact
   PDA-style flowchart, and animate recognition with input-tape feedback.
 
-Important distinction: the backend still includes general CFG-to-PDA and PDA
-simulation code, but the current `/cfg` page does not call those endpoints.
+Important distinction: the renamed `(IRRELEVANT)` algorithm files are not part
+of the current visible frontend workflow.
 
-## Backend Endpoints
+## Removed / Irrelevant Backend Endpoints
+
+These routes are no longer exposed from the current simplified `app.py`.
 
 | Endpoint | Function |
 |---|---|
-| `POST /api/regex/nfa` | Regex string -> NFA dict. |
-| `POST /api/regex/dfa` | NFA dict -> minimized DFA dict. |
-| `POST /api/regex/check` | DFA + string -> `{ valid, path }`. |
-| `POST /api/regex/nfa/check` | NFA + string -> one path trace. |
-| `POST /api/cfg/pda` | CFG text -> PDA dict. |
-| `POST /api/cfg/check` | PDA + string -> BFS PDA trace. |
+| `(IRRELEVANT) POST /api/regex/nfa` | Regex string -> NFA dict. |
+| `(IRRELEVANT) POST /api/regex/dfa` | NFA dict -> minimized DFA dict. |
+| `(IRRELEVANT) POST /api/regex/check` | DFA + string -> `{ valid, path }`. |
+| `(IRRELEVANT) POST /api/regex/nfa/check` | NFA + string -> one path trace. |
+| `(IRRELEVANT) POST /api/cfg/pda` | CFG text -> PDA dict. |
+| `(IRRELEVANT) POST /api/cfg/check` | PDA + string -> BFS PDA trace. |
 
 ## Regex Pipeline
 
 ```text
 regex
 -> recursive-descent parser
--> Thompson NFA
--> subset construction DFA
+-> `(IRRELEVANT)` Thompson NFA
+-> `(IRRELEVANT)` subset construction DFA
 -> Hopcroft minimization
 -> DFA path checker
 -> browser animation
 ```
 
-`thompson.py` supports union as `|`, `U`, or `+`. The plus sign means union,
+`(IRRELEVANT) thompson.py` supports union as `|`, `U`, or `+`. The plus sign means union,
 not programming-regex Kleene-plus.
 
-`subset_construction.py` builds reachable DFA states from epsilon closures,
+`(IRRELEVANT) subset_construction.py` builds reachable DFA states from epsilon closures,
 adds a trap state only when needed, and then minimizes with Hopcroft's
 algorithm.
 
-`string_checker_dfa.py` returns:
+`(IRRELEVANT) string_checker_dfa.py` returns:
 
 ```json
 { "valid": true, "path": [0, 1, 2] }
@@ -60,7 +62,7 @@ path that consumed the most input on rejection.
 
 ## CFG/PDA Backend
 
-`cfg_to_pda.py` creates a top-down PDA with:
+`(IRRELEVANT) cfg_to_pda.py` creates a top-down PDA with:
 
 - `q0`: start
 - `q1`: work state
@@ -73,7 +75,7 @@ match per terminal, and an accept transition. Its push convention is:
 push[0] becomes the top of the stack
 ```
 
-`string_checker_pda.py` is BFS-based. It no longer uses the older
+`(IRRELEVANT) string_checker_pda.py` is BFS-based. It no longer uses the older
 deterministic LL-style scoring heuristic. It searches configurations:
 
 ```text
@@ -100,8 +102,7 @@ not a full arbitrary CFG-to-PDA renderer.
 
 **Is the regex conversion real or hardcoded?**  
 The current UI is hardcoded. It loads a fixed minimized DFA object for the
-selected preset. The old backend regex conversion code still exists, but the
-page no longer calls it.
+selected preset. The renamed `(IRRELEVANT)` files are not called by the page.
 
 **Why does the regex page only show a DFA?**  
 The backend still builds an NFA first, but the current UI focuses on the
@@ -113,7 +114,7 @@ has general CFG/PDA algorithms, but the page itself is preset-based.
 
 **What changed in the PDA simulator?**  
 The old documentation described a deterministic production-scoring heuristic.
-The current `string_checker_pda.py` uses BFS over configurations, which can
+The current `(IRRELEVANT) string_checker_pda.py` uses BFS over configurations, which can
 find a path that requires backtracking, within a search cap.
 
 **Why use a trap state only sometimes?**  
@@ -135,10 +136,10 @@ otherwise have an undefined transition.
 | File | Why it matters |
 |---|---|
 | `app.py` | Flask routes and API boundary. |
-| `algorithms/thompson.py` | Regex parser and NFA construction. |
-| `algorithms/subset_construction.py` | DFA construction and minimization. |
-| `algorithms/string_checker_dfa.py` | DFA path checking. |
-| `algorithms/cfg_to_pda.py` | General CFG-to-PDA construction. |
-| `algorithms/string_checker_pda.py` | BFS PDA simulation. |
+| `(IRRELEVANT) algorithms/(IRRELEVANT) thompson.py` | Regex parser and NFA construction. |
+| `(IRRELEVANT) algorithms/(IRRELEVANT) subset_construction.py` | DFA construction and minimization. |
+| `(IRRELEVANT) algorithms/(IRRELEVANT) string_checker_dfa.py` | DFA path checking. |
+| `(IRRELEVANT) algorithms/(IRRELEVANT) cfg_to_pda.py` | General CFG-to-PDA construction. |
+| `(IRRELEVANT) algorithms/(IRRELEVANT) string_checker_pda.py` | BFS PDA simulation. |
 | `static/js/regex.js` | Current Regex -> DFA UI. |
 | `static/js/cfg.js` | Current preset CFG flow UI. |

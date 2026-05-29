@@ -45,4 +45,4 @@ No Node.js, npm, webpack, or Vite step is required.
 - Flask serves `/`, `/regex`, and `/cfg`.
 - The regex frontend loads a hardcoded DFA object and renders it directly.
 - The CFG frontend renders one of two preset flows in JavaScript.
-- The backend CFG/PDA APIs remain available for extension and direct testing.
+- The renamed `(IRRELEVANT)` backend CFG/PDA files are kept only as legacy reference code.

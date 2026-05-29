@@ -8,11 +8,11 @@ browser interface.
 Python is used for:
 
 - Flask routing in `app.py`
-- Thompson's regex-to-NFA construction
-- subset construction and Hopcroft DFA minimization
-- DFA and NFA string checking
-- general CFG-to-PDA construction
-- BFS PDA simulation
+- `(IRRELEVANT) thompson.py`: Thompson's regex-to-NFA construction
+- `(IRRELEVANT) subset_construction.py`: subset construction and Hopcroft DFA minimization
+- `(IRRELEVANT) string_checker_dfa.py` and `(IRRELEVANT) string_checker_nfa.py`: DFA and NFA string checking
+- `(IRRELEVANT) cfg_to_pda.py`: general CFG-to-PDA construction
+- `(IRRELEVANT) string_checker_pda.py`: BFS PDA simulation
 
 Python fits the project because the code is readable, easy to run locally, and
 well suited to classroom-size automata examples.
