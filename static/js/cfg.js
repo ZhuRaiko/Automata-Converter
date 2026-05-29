@@ -19,6 +19,8 @@ const cfgRunBtn = document.getElementById('cfg-run-btn');
 const cfgPauseBtn = document.getElementById('cfg-pause-btn');
 const cfgResetBtn = document.getElementById('cfg-reset-btn');
 const cfgStepsList = document.getElementById('cfg-steps-list');
+const cfgDerivationList = document.getElementById('cfg-derivation-list');
+const cfgDerivationStatus = document.getElementById('cfg-derivation-status');
 const cfgPendingChar = document.getElementById('cfg-pending-char');
 const cfgVerifiedChars = document.getElementById('cfg-verified-chars');
 const cfgMultiStringRows = document.querySelectorAll('#cfg-multi-checker .multi-string-row');
@@ -92,6 +94,7 @@ function resetCurrentCfg() {
     }
     resetCfgStringResults();
     clearCfgSteps();
+    showDefaultCfgDerivation();
     addCfgStep('Ready. Choose a CFG.');
 }
 
@@ -118,6 +121,370 @@ function addCfgStep(text) {
     li.textContent = text;
     cfgStepsList.appendChild(li);
     cfgStepsList.scrollTop = cfgStepsList.scrollHeight;
+}
+
+function clearDerivationCheck() {
+    cfgDerivationList.innerHTML = '';
+}
+
+function setDerivationStatus(label, state = 'waiting') {
+    cfgDerivationStatus.textContent = label;
+    cfgDerivationStatus.className = `cfg-derivation-status ${state}`;
+}
+
+function clearActiveDerivationStep() {
+    cfgDerivationList.querySelectorAll('.derivation-step.active').forEach(step => {
+        step.classList.remove('active');
+    });
+}
+
+function addDerivationStep(text, state = 'pending', active = false) {
+    if (active) clearActiveDerivationStep();
+    const item = document.createElement('div');
+    item.className = `derivation-step ${state}${active ? ' active' : ''}`;
+    item.textContent = text;
+    cfgDerivationList.appendChild(item);
+    cfgDerivationList.scrollTop = cfgDerivationList.scrollHeight;
+}
+
+function setDerivationSteps(steps) {
+    clearDerivationCheck();
+    steps.forEach(step => addDerivationStep(step.text, step.state));
+}
+
+function showDefaultCfgDerivation() {
+    const start = selectedCfgIndex === 0 ? 'S => P A bab A Q R' : 'S => X Y Z W';
+    setDerivationStatus('Waiting', 'waiting');
+    setDerivationSteps([{ text: start, state: 'pending' }]);
+}
+
+function commonPrefixLength(a, b) {
+    let i = 0;
+    while (i < a.length && i < b.length && a[i] === b[i]) i++;
+    return i;
+}
+
+function splitPrefixSuffix(target, prefixChoices, suffixChoices) {
+    for (const prefix of prefixChoices) {
+        if (!target.startsWith(prefix)) continue;
+        const afterPrefix = target.slice(prefix.length);
+        for (const suffix of suffixChoices) {
+            if (!afterPrefix.endsWith(suffix)) continue;
+            return {
+                prefix,
+                middle: afterPrefix.slice(0, afterPrefix.length - suffix.length),
+                suffix,
+            };
+        }
+    }
+    return null;
+}
+
+function splitPresetOne(target) {
+    for (const prefix of ['aba', 'bab']) {
+        if (!target.startsWith(prefix)) continue;
+        const afterPrefix = target.slice(prefix.length);
+        const anchorIndex = afterPrefix.indexOf('bab');
+        if (anchorIndex < 0) continue;
+        const afterAnchor = afterPrefix.slice(anchorIndex + 3);
+        for (const q of ['ab', 'ba', 'a', 'b']) {
+            if (!afterAnchor.startsWith(q)) continue;
+            return {
+                prefix,
+                a1: afterPrefix.slice(0, anchorIndex),
+                a2: '',
+                q,
+                r: afterAnchor.slice(q.length),
+            };
+        }
+        for (const q of ['ab', 'ba', 'a', 'b']) {
+            const qIndex = afterAnchor.indexOf(q);
+            if (qIndex < 0) continue;
+            return {
+                prefix,
+                a1: afterPrefix.slice(0, anchorIndex),
+                a2: afterAnchor.slice(0, qIndex),
+                q,
+                r: afterAnchor.slice(qIndex + q.length),
+            };
+        }
+    }
+    return null;
+}
+
+function splitPresetTwo(target) {
+    for (const prefix of ['101', '111', '11', '1', '0']) {
+        if (!target.startsWith(prefix)) continue;
+        const afterPrefix = target.slice(prefix.length);
+        let best = null;
+        for (const z of ['111', '000', '101']) {
+            const zIndex = afterPrefix.indexOf(z);
+            if (zIndex < 0) continue;
+            const candidate = {
+                prefix,
+                y: afterPrefix.slice(0, zIndex),
+                z,
+                w: afterPrefix.slice(zIndex + z.length),
+            };
+            if (!best || candidate.y.length < best.y.length) best = candidate;
+        }
+        if (best) return best;
+    }
+    return null;
+}
+
+function buildRepeatDerivations(seed, nonTerminal, text, suffix, displaySteps, consumedTarget) {
+    let current = seed;
+    for (const ch of text) {
+        current = current.replace(nonTerminal, `${ch}${nonTerminal}`);
+        displaySteps.push({ text: `${current}    (${nonTerminal} -> ${ch}${nonTerminal})`, state: 'accepted' });
+        consumedTarget += ch;
+    }
+    const epsilonDisplay = current.replace(nonTerminal, 'ε');
+    current = current.replace(nonTerminal, '');
+    displaySteps.push({ text: `${epsilonDisplay || 'ε'}    (${nonTerminal} -> ε)`, state: 'accepted' });
+    return { current, consumedTarget };
+}
+
+function compactDerivationText(text) {
+    return text.replace(/\s+/g, '');
+}
+
+function hasOnlySymbols(text, alphabet) {
+    return [...text].every(ch => alphabet.includes(ch));
+}
+
+function firstMatchingPrefix(text, choices) {
+    return choices.find(choice => text.startsWith(choice));
+}
+
+function isPartialPrefix(text, choices) {
+    return choices.some(choice => choice.startsWith(text));
+}
+
+function chooseYToken(text, index) {
+    if (text.startsWith('01', index)) return '01';
+    return text[index];
+}
+
+function buildPreviewRepeat(seed, nonTerminal, text, steps) {
+    let current = seed;
+    for (const ch of text) {
+        current = current.replace(nonTerminal, `${ch}${nonTerminal}`);
+        steps.push({ text: `${current}    (${nonTerminal} -> ${ch}${nonTerminal})`, state: 'accepted' });
+    }
+    return current;
+}
+
+function rejectedDerivation(target, startText, reason) {
+    const steps = [{ text: startText, state: 'accepted' }];
+    if (target) {
+        steps.push({
+            text: `${target}  (${reason})`,
+            state: 'rejected',
+        });
+    } else {
+        steps.push({
+            text: `ε  (${reason})`,
+            state: 'rejected',
+        });
+    }
+    return { accepted: false, steps };
+}
+
+function buildCfgDerivation(index, target) {
+    if (target === '') {
+        return rejectedDerivation(target, index === 0 ? 'P A bab A Q R' : 'X Y Z W', 'null string has no valid derivation');
+    }
+
+    if (index === 0) {
+        const start = 'P A bab A Q R';
+        const split = splitPresetOne(target);
+        if (!split) return rejectedDerivation(target, start, 'no matching prefix, bab block, or final choice');
+
+        const steps = [{ text: start, state: 'accepted' }];
+        let current = start.replace('P', split.prefix);
+        steps.push({ text: current, state: 'accepted' });
+
+        let built = split.prefix;
+        let expanded = buildRepeatDerivations(current, 'A', split.a1, `bab${split.a2}${split.q}${split.r}`, steps, built);
+        current = expanded.current;
+        built += split.a1;
+
+        built += 'bab';
+        expanded = buildRepeatDerivations(current, 'A', split.a2, `${split.q}${split.r}`, steps, built);
+        current = expanded.current;
+        current = current.replace('Q', split.q);
+        steps.push({ text: current, state: 'accepted' });
+        expanded = buildRepeatDerivations(current, 'R', split.r, '', steps, built + split.a2 + split.q);
+        current = expanded.current;
+        steps.push({ text: current, state: compactDerivationText(current) === target ? 'accepted' : 'rejected' });
+
+        return { accepted: compactDerivationText(current) === target, steps };
+    }
+
+    const start = 'X Y Z W';
+    const split = splitPresetTwo(target);
+    if (!split) return rejectedDerivation(target, start, 'no matching prefix/required block');
+
+    const steps = [{ text: start, state: 'accepted' }];
+    let current = start.replace('X', split.prefix);
+    steps.push({ text: current, state: 'accepted' });
+
+    let yIndex = 0;
+    while (yIndex < split.y.length) {
+        const token = chooseYToken(split.y, yIndex);
+        current = current.replace('Y', `${token}Y`);
+        steps.push({ text: current, state: 'accepted' });
+        yIndex += token.length;
+    }
+    const yEpsilonDisplay = current.replace('Y', 'ε');
+    current = current.replace('Y', '');
+    steps.push({ text: `${yEpsilonDisplay}    (Y -> ε)`, state: 'accepted' });
+    current = current.replace('Z', split.z);
+    steps.push({ text: current, state: 'accepted' });
+    const wExpanded = buildRepeatDerivations(current, 'W', split.w, '', steps, target.slice(0, target.length - split.w.length));
+    current = wExpanded.current;
+    steps.push({ text: current, state: compactDerivationText(current) === target ? 'accepted' : 'rejected' });
+
+    return { accepted: compactDerivationText(current) === target, steps };
+}
+
+function buildPresetOnePreview(target) {
+    const start = 'P A bab A Q R';
+    const prefixChoices = ['aba', 'bab'];
+    const steps = [{ text: start, state: 'accepted' }];
+
+    if (!hasOnlySymbols(target, ['a', 'b'])) {
+        return { accepted: false, steps: steps.concat([{ text: `${target}  (symbol outside Σ = {a, b})`, state: 'rejected' }]) };
+    }
+
+    const prefix = firstMatchingPrefix(target, prefixChoices);
+    if (!prefix) {
+        if (isPartialPrefix(target, prefixChoices)) {
+            steps.push({ text: `${target || 'P'} A bab A Q R    (waiting to finish prefix choice)`, state: 'pending' });
+            return { accepted: false, steps };
+        }
+        return rejectedDerivation(target, start, 'no matching prefix');
+    }
+
+    let current = start.replace('P', prefix);
+    steps.push({ text: current, state: 'accepted' });
+
+    const rest = target.slice(prefix.length);
+    const anchorIndex = rest.indexOf('bab');
+    if (anchorIndex < 0) {
+        current = buildPreviewRepeat(current, 'A', rest, steps);
+        steps.push({ text: `${current}    (waiting for required bab block)`, state: 'pending' });
+        return { accepted: false, steps };
+    }
+
+    const beforeAnchor = rest.slice(0, anchorIndex);
+    current = buildPreviewRepeat(current, 'A', beforeAnchor, steps);
+    const epsilonDisplay = current.replace('A', 'ε');
+    current = current.replace('A', '');
+    steps.push({ text: `${epsilonDisplay}    (A -> ε)`, state: 'accepted' });
+
+    const afterAnchor = rest.slice(anchorIndex + 3);
+    const full = buildCfgDerivation(0, target);
+    if (full.accepted) return full;
+
+    current = buildPreviewRepeat(current, 'A', afterAnchor, steps);
+    steps.push({ text: `${current}    (waiting for Q/R ending choice)`, state: 'pending' });
+    return { accepted: false, steps };
+}
+
+function buildPresetTwoPreview(target) {
+    const start = 'X Y Z W';
+    const prefixChoices = ['101', '111', '11', '1', '0'];
+    const steps = [{ text: start, state: 'accepted' }];
+
+    if (!hasOnlySymbols(target, ['0', '1'])) {
+        return { accepted: false, steps: steps.concat([{ text: `${target}  (symbol outside Σ = {0, 1})`, state: 'rejected' }]) };
+    }
+
+    const prefix = firstMatchingPrefix(target, prefixChoices);
+    if (!prefix) {
+        if (isPartialPrefix(target, prefixChoices)) {
+            steps.push({ text: `${target || 'X'} Y Z W    (waiting to finish prefix choice)`, state: 'pending' });
+            return { accepted: false, steps };
+        }
+        return rejectedDerivation(target, start, 'no matching prefix');
+    }
+
+    let current = start.replace('X', prefix);
+    steps.push({ text: current, state: 'accepted' });
+
+    const rest = target.slice(prefix.length);
+    const full = buildCfgDerivation(1, target);
+    if (full.accepted) return full;
+
+    let bestZ = null;
+    for (const z of ['111', '000', '101']) {
+        const zIndex = rest.indexOf(z);
+        if (zIndex >= 0 && (!bestZ || zIndex < bestZ.index)) bestZ = { z, index: zIndex };
+    }
+
+    if (!bestZ) {
+        let yIndex = 0;
+        while (yIndex < rest.length) {
+            const token = chooseYToken(rest, yIndex);
+            current = current.replace('Y', `${token}Y`);
+            steps.push({ text: `${current}    (Y -> ${token}Y)`, state: 'accepted' });
+            yIndex += token.length;
+        }
+        steps.push({ text: `${current}    (waiting for required 111, 000, or 101 block)`, state: 'pending' });
+        return { accepted: false, steps };
+    }
+
+    let yIndex = 0;
+    const yText = rest.slice(0, bestZ.index);
+    while (yIndex < yText.length) {
+        const token = chooseYToken(yText, yIndex);
+        current = current.replace('Y', `${token}Y`);
+        steps.push({ text: `${current}    (Y -> ${token}Y)`, state: 'accepted' });
+        yIndex += token.length;
+    }
+    const yEpsilonDisplay = current.replace('Y', 'ε');
+    current = current.replace('Y', '');
+    steps.push({ text: `${yEpsilonDisplay}    (Y -> ε)`, state: 'accepted' });
+    current = current.replace('Z', bestZ.z);
+    steps.push({ text: current, state: 'accepted' });
+    const tail = rest.slice(bestZ.index + bestZ.z.length);
+    current = buildPreviewRepeat(current, 'W', tail, steps);
+    steps.push({ text: `${current}    (tail still open)`, state: 'pending' });
+    return { accepted: false, steps };
+}
+
+function buildCfgDerivationPreview(index, value) {
+    if (!value) {
+        return {
+            accepted: false,
+            steps: [{ text: index === 0 ? 'S => P A bab A Q R' : 'S => X Y Z W', state: 'pending' }],
+        };
+    }
+    return index === 0 ? buildPresetOnePreview(value) : buildPresetTwoPreview(value);
+}
+
+function previewCfgDerivation(value) {
+    if (!value) {
+        showDefaultCfgDerivation();
+        return;
+    }
+    const derivation = buildCfgDerivationPreview(selectedCfgIndex, value || '');
+    const lastState = derivation.steps[derivation.steps.length - 1]?.state || 'pending';
+    if (derivation.accepted) {
+        setDerivationStatus('Accepted', 'accepted');
+    } else if (lastState === 'rejected') {
+        setDerivationStatus('Rejected', 'rejected');
+    } else {
+        setDerivationStatus('In Progress', 'partial');
+    }
+    setDerivationSteps(derivation.steps);
+}
+
+function addActiveDerivationStep(step) {
+    addDerivationStep(step.text, step.state, true);
 }
 
 function setCfgPendingChar(ch, state = 'pending') {
@@ -183,6 +550,7 @@ async function checkCfgStringRow(row) {
     const input = row.querySelector('.multi-string-input');
     const value = input.value || '';
     setCfgStringResult(row, acceptsSelectedLanguage(value), value, null);
+    if (input.id === 'cfg-test-input') previewCfgDerivation(value);
 }
 
 async function checkAllCfgStrings() {
@@ -261,8 +629,8 @@ function createCy(containerId, elements) {
                 'border-width': 4,
             }},
             { selector: '.accept', style: {
-                'border-width': 6,
-                'border-style': 'double',
+                'border-width': 3,
+                'border-style': 'solid',
             }},
             { selector: '.pulse', style: {
                 'width': 56,
@@ -488,6 +856,7 @@ async function loadSelectedCfgFlow() {
     currentPda = { selected: selectedCfgIndex };
     currentSteps = null;
     resetCfgCharTape();
+    showDefaultCfgDerivation();
 
     const els = buildFlowchartElements(selectedCfgIndex);
     if (cyPda) cyPda.destroy();
@@ -509,6 +878,7 @@ cfgPauseBtn.addEventListener('click', () => {
 cfgRunBtn.addEventListener('click', async () => {
     if (!currentPda) await loadSelectedCfgFlow();
     const s = document.getElementById('cfg-test-input').value || '';
+    previewCfgDerivation(s);
     await runPda(s);
 });
 
@@ -526,6 +896,10 @@ async function runPda(s) {
     startAnts();
 
     const delay = 700;
+    const derivation = buildCfgDerivation(selectedCfgIndex, s);
+    let derivationIndex = 0;
+    clearDerivationCheck();
+    setDerivationStatus('Deriving', 'deriving');
     let currentActiveId = null;
     let consumedIndex = 0;
 
@@ -534,6 +908,10 @@ async function runPda(s) {
             if (!(await waitWhilePdaPaused(token))) return;
 
             const step = currentSteps[i];
+            if (derivationIndex < derivation.steps.length) {
+                addActiveDerivationStep(derivation.steps[derivationIndex]);
+                derivationIndex += 1;
+            }
 
             cyPda.edges('.traversing').removeClass('traversing');
             edgeById(cyPda, step.edge).addClass('traversing');
@@ -572,6 +950,15 @@ async function runPda(s) {
             else cyPda.elements().addClass('invalid');
         }
         addCfgStep(valid ? 'Result: VALID (string accepted)' : 'Result: INVALID (string rejected)');
+
+        while (derivationIndex < derivation.steps.length) {
+            if (!(await waitWhilePdaPaused(token))) return;
+            addActiveDerivationStep(derivation.steps[derivationIndex]);
+            derivationIndex += 1;
+            await sleep(Math.max(140, Math.floor(delay * 0.35)));
+            if (token !== pdaRunToken) return;
+        }
+        setDerivationStatus(derivation.accepted ? 'Accepted' : 'Rejected', derivation.accepted ? 'accepted' : 'rejected');
     } finally {
         if (token === pdaRunToken) setPdaPauseEnabled(false);
     }
@@ -580,11 +967,15 @@ async function runPda(s) {
 cfgMultiStringRows.forEach(row => {
     const input = row.querySelector('.multi-string-input');
     const simulateBtn = row.querySelector('.simulate-string-btn');
-    input.addEventListener('input', () => checkCfgStringRow(row));
+    input.addEventListener('input', () => {
+        checkCfgStringRow(row);
+        previewCfgDerivation(input.value || '');
+    });
     simulateBtn.addEventListener('click', async () => {
         if (!currentPda) await loadSelectedCfgFlow();
         document.getElementById('cfg-test-input').value = input.value || '';
         await checkCfgStringRow(row);
+        previewCfgDerivation(input.value || '');
         scrollPdaVisualizerIntoView();
         await runPda(input.value || '');
     });
@@ -598,6 +989,7 @@ cfgResetBtn.addEventListener('click', async () => {
     resetViewport(cyPda);
     resetCfgCharTape();
     resetCfgStringResults();
+    showDefaultCfgDerivation();
     await checkAllCfgStrings();
     clearCfgSteps();
     addCfgStep('Reset complete. PDA flow is ready.');

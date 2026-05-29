@@ -144,6 +144,110 @@
     color: var(--navy-2);
 }
 
+.cfg-derivation-checker {
+    margin: 12px 0 14px 0;
+    background:
+        linear-gradient(90deg, rgba(15, 118, 110, 0.08) 0 4px, transparent 4px),
+        linear-gradient(var(--rule) 1px, transparent 1px),
+        var(--paper);
+    background-size: auto, 100% 24px, auto;
+    overflow: hidden;
+}
+
+.cfg-derivation-checker h2 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.cfg-derivation-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 86px;
+    padding: 4px 9px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #f2f5f6;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.cfg-derivation-status.deriving,
+.cfg-derivation-status.partial {
+    border-color: #f1d27a;
+    background: var(--amber-soft);
+    color: var(--amber);
+}
+
+.cfg-derivation-status.accepted {
+    border-color: #afe5c1;
+    background: var(--green-soft);
+    color: var(--green);
+}
+
+.cfg-derivation-status.rejected {
+    border-color: #ffc4bf;
+    background: var(--red-soft);
+    color: var(--red);
+}
+
+.cfg-derivation-list {
+    display: grid;
+    gap: 6px;
+    max-height: 190px;
+    padding: 10px 12px;
+    overflow-y: auto;
+}
+
+.derivation-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 7px 9px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--navy-2);
+    font-family: Consolas, Monaco, "Courier New", monospace;
+    font-size: 0.9rem;
+    line-height: 1.35;
+}
+
+.derivation-step::before {
+    content: "=>";
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-weight: 900;
+}
+
+.derivation-step.accepted {
+    border-color: #afe5c1;
+    background: var(--green-soft);
+    color: var(--green);
+}
+
+.derivation-step.rejected {
+    border-color: #ffc4bf;
+    background: var(--red-soft);
+    color: var(--red);
+}
+
+.derivation-step.pending {
+    border-color: #f1d27a;
+    background: var(--amber-soft);
+    color: var(--amber);
+}
+
+.derivation-step.active {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+    transform: translateX(2px);
+}
+
 #cy-pda {
     height: 460px;
     flex: 1 1 auto;
@@ -152,5 +256,10 @@
 @media (max-width: 700px) {
     .cfg-switcher {
         grid-template-columns: 1fr;
+    }
+
+    .cfg-derivation-checker h2 {
+        align-items: flex-start;
+        flex-direction: column;
     }
 }

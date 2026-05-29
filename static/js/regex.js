@@ -378,8 +378,8 @@ function createCy(containerId, elements) {
                 'transition-duration': 150,
             }},
             { selector: '.accept', style: {
-                'border-width': 6,
-                'border-style': 'double',
+                'border-width': 3,
+                'border-style': 'solid',
             }},
             { selector: '.active', style: {
                 'background-color': '#e4f5f2',
