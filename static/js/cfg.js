@@ -11,7 +11,7 @@ What it does:
     * the active state lights up (sticky) and pulses on entry,
     * the transition edge between consecutive states gets "marching ants"
       (animated line-dash-offset) so the direction of travel is obvious,
-    * the stack panel updates per step with push/pop flashes on the top box.
+    * the input tape shows which character is being verified.
 */
 
 const cfgInput = document.getElementById('cfg-input');
@@ -19,12 +19,11 @@ const cfgRunBtn = document.getElementById('cfg-run-btn');
 const cfgPauseBtn = document.getElementById('cfg-pause-btn');
 const cfgResetBtn = document.getElementById('cfg-reset-btn');
 const cfgStepsList = document.getElementById('cfg-steps-list');
-const stackContents = document.getElementById('stack-contents');
 const cfgPendingChar = document.getElementById('cfg-pending-char');
 const cfgVerifiedChars = document.getElementById('cfg-verified-chars');
 const cfgMultiStringRows = document.querySelectorAll('#cfg-multi-checker .multi-string-row');
 const cfgChoiceButtons = document.querySelectorAll('.cfg-choice');
-const STACK_BOTTOM = '\u0394';
+const ACCEPT_MARKER = '\u0394';
 
 const convertedCfgs = [
     `S -> P A bab A Q R
@@ -42,7 +41,6 @@ W -> 1W | 0W | ε`,
 let cyPda = null;
 let currentPda = null;
 let currentSteps = null;
-let lastStack = [];
 let selectedCfgIndex = 0;
 let pdaRunToken = 0;
 let pdaPaused = false;
@@ -92,8 +90,6 @@ function resetCurrentCfg() {
         cyPda.destroy();
         cyPda = null;
     }
-    stackContents.innerHTML = 'Empty Stack';
-    lastStack = [];
     resetCfgStringResults();
     clearCfgSteps();
     addCfgStep('Ready. Choose a CFG.');
@@ -335,14 +331,13 @@ function edgeById(cy, id) {
     return cy.getElementById(id);
 }
 
-function addFlowStep(steps, node, edge, stack, text, char = null, rejected = false) {
-    steps.push({ node, edge, stack: stack.slice(), text, char, rejected });
+function addFlowStep(steps, node, edge, text, char = null, rejected = false) {
+    steps.push({ node, edge, text, char, rejected });
 }
 
 function dfaSpec(index) {
     if (index === 0) {
         return {
-            bottom: STACK_BOTTOM,
             start: 0,
             accept: [10],
             reject: [3],
@@ -368,7 +363,6 @@ function dfaSpec(index) {
     }
 
     return {
-        bottom: STACK_BOTTOM,
         start: 0,
         accept: [7],
         states: [
@@ -433,7 +427,7 @@ function buildFlowchartElements(index) {
 
         if (spec.accept.includes(state)) {
             nodes.push(dfaFlowNode(`accept_${state}`, 'ACCEPT', 'accept', x, y + 125));
-            edges.push(flowEdge(`e_read_accept_${state}`, `read_${state}`, `accept_${state}`, STACK_BOTTOM));
+            edges.push(flowEdge(`e_read_accept_${state}`, `read_${state}`, `accept_${state}`, ACCEPT_MARKER));
         }
     }
 
@@ -443,27 +437,24 @@ function buildFlowchartElements(index) {
 function buildFlowSteps(s, valid) {
     const spec = dfaSpec(selectedCfgIndex);
     const rejectStates = new Set(spec.reject || []);
-    const stack = [spec.bottom];
     const steps = [];
     let state = spec.start;
 
-    addFlowStep(steps, 'start', null, stack, 'Start PDA flow');
-    addFlowStep(steps, `read_${state}`, 'e_start_read_0', stack, `Read at q${state}`);
+    addFlowStep(steps, 'start', null, 'Start PDA-style READ flow');
+    addFlowStep(steps, `read_${state}`, 'e_start_read_0', `Ready at q${state}`);
 
     for (const ch of s) {
         const next = spec.transitions[state] && spec.transitions[state][ch];
         if (next === undefined) {
-            addFlowStep(steps, `read_${state}`, null, stack, `No flow for "${ch}"; REJECT`, ch, true);
+            addFlowStep(steps, `read_${state}`, null, `No flow for "${ch}"; REJECT`, ch, true);
             return steps;
         }
 
-        stack.push(ch);
         addFlowStep(
             steps,
             `read_${next}`,
             `e_read_read_${state}_${ch}`,
-            stack,
-            `Read "${ch}"`,
+            `Read "${ch}" and move q${state} -> q${next}`,
             ch,
             rejectStates.has(next)
         );
@@ -472,14 +463,9 @@ function buildFlowSteps(s, valid) {
     }
 
     if (valid && spec.accept.includes(state)) {
-        while (stack.length > 1) {
-            const top = stack.pop();
-            addFlowStep(steps, `read_${state}`, null, stack, `Pop "${top}" behind the READ flow`);
-        }
-        stack.pop();
-        addFlowStep(steps, `accept_${state}`, `e_read_accept_${state}`, stack, `${STACK_BOTTOM} reached; ACCEPT`);
+        addFlowStep(steps, `accept_${state}`, `e_read_accept_${state}`, 'Input consumed; ACCEPT');
     } else {
-        addFlowStep(steps, `read_${state}`, null, stack, `Input ended outside an accepting flow; REJECT`);
+        addFlowStep(steps, `read_${state}`, null, 'Input ended outside an accepting flow; REJECT');
     }
     return steps;
 }
@@ -488,37 +474,6 @@ function markAcceptNodes() {
     dfaSpec(selectedCfgIndex).accept.forEach(state => {
         cyPda.getElementById(`accept_${state}`).addClass('accept');
     });
-}
-
-// ----------------------------- Stack rendering ----------------------------- //
-
-function renderStack(stack) {
-    stack = stack || [];
-    if (stack.length === 0) {
-        stackContents.innerHTML = 'Empty Stack';
-        lastStack = [];
-        return;
-    }
-    stackContents.innerHTML = '';
-    const reversed = stack.slice().reverse();
-    reversed.forEach((sym, idx) => {
-        const div = document.createElement('div');
-        div.className = 'stack-box';
-        if (idx === 0) div.classList.add('stack-top');
-        div.textContent = sym;
-        stackContents.appendChild(div);
-    });
-
-    const prevTop = lastStack.length ? lastStack[lastStack.length - 1] : null;
-    const newTop = stack[stack.length - 1];
-    if (newTop !== prevTop) {
-        const topBox = stackContents.firstChild;
-        if (topBox) {
-            topBox.classList.add(stack.length > lastStack.length ? 'push' : 'pop');
-            setTimeout(() => topBox.classList.remove('push', 'pop'), 500);
-        }
-    }
-    lastStack = stack.slice();
 }
 
 // ----------------------------- Load selected flow ----------------------------- //
@@ -532,8 +487,6 @@ async function loadSelectedCfgFlow() {
     addCfgStep('Loading hardcoded PDA flow for the selected regular language...');
     currentPda = { selected: selectedCfgIndex };
     currentSteps = null;
-    stackContents.innerHTML = 'Empty Stack';
-    lastStack = [];
     resetCfgCharTape();
 
     const els = buildFlowchartElements(selectedCfgIndex);
@@ -569,7 +522,6 @@ async function runPda(s) {
     currentSteps = buildFlowSteps(s, valid);
 
     cyPda.elements().removeClass('active traversing valid invalid pulse');
-    lastStack = [];
     prepareCfgCharTape(s);
     startAnts();
 
@@ -598,7 +550,6 @@ async function runPda(s) {
                 keepElementInView(cyPda, activeNode);
             }
 
-            renderStack(step.stack);
             if (step.char !== null && step.char !== undefined) {
                 if (step.rejected) {
                     showCfgRejectedChar(step.char);
@@ -607,7 +558,7 @@ async function runPda(s) {
                 }
                 consumedIndex += 1;
             }
-            addCfgStep(`${step.text}; stack: [${(step.stack || []).join(',')}]`);
+            addCfgStep(step.text);
 
             await sleep(delay);
             if (token !== pdaRunToken) return;
@@ -645,8 +596,6 @@ cfgResetBtn.addEventListener('click', async () => {
     cancelPdaRun();
     if (cyPda) cyPda.elements().removeClass('active traversing valid invalid pulse');
     resetViewport(cyPda);
-    stackContents.innerHTML = 'Empty Stack';
-    lastStack = [];
     resetCfgCharTape();
     resetCfgStringResults();
     await checkAllCfgStrings();

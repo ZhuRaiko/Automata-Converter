@@ -89,7 +89,8 @@ The CFG text area is read-only. Choose one of the two presets and the page
 automatically renders the matching flow.
 
 The page renders a compact PDA-style flowchart rather than the full general
-PDA from the backend. It also shows a stack panel beside the diagram.
+PDA from the backend. It focuses on READ states, active transitions, and input
+progress for the selected preset.
 
 ### CFG Test Strings
 
@@ -105,13 +106,9 @@ During a run:
 
 - READ states light up as the string is consumed
 - the active transition uses the orange dashed "marching" style
-- the stack panel pushes symbols while reading
-- on an accepting run, the stack is popped back down and the flow reaches an
-  ACCEPT node
+- the current character tape moves forward as input symbols are verified
+- on an accepting run, the flow reaches an ACCEPT node
 - rejected runs turn the diagram red
-
-The stack panel is visual, not a full display of the backend CFG-to-PDA
-transition table.
 
 ## Backend CFG/PDA APIs
 

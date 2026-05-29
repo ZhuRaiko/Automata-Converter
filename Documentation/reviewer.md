@@ -9,7 +9,7 @@ The app has two user-facing pages:
 - `/regex`: select one of two regex presets, load the matching hardcoded DFA,
   render it, and animate string acceptance.
 - `/cfg`: select one of two read-only converted CFG presets, render a compact
-  PDA-style flowchart, and animate recognition with a stack panel.
+  PDA-style flowchart, and animate recognition with input-tape feedback.
 
 Important distinction: the backend still includes general CFG-to-PDA and PDA
 simulation code, but the current `/cfg` page does not call those endpoints.
@@ -91,7 +91,7 @@ The current `static/js/cfg.js` implementation is preset-based:
 - two converted CFG text blocks
 - a matching built-in DFA specification for each selected language
 - a compact flowchart with READ, ACCEPT, and REJECT nodes
-- a visual stack that pushes read characters and pops them before accept
+- a current-character tape and step log that track the READ flow
 
 This page is best described as a compact PDA-style recognition visualization,
 not a full arbitrary CFG-to-PDA renderer.

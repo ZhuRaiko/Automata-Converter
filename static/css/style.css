@@ -463,25 +463,6 @@ button:disabled {
     gap: 12px;
 }
 
-#stack-panel {
-    width: 260px;
-    background: var(--paper-soft);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px;
-}
-
-.stack-contents {
-    border: 1px dashed var(--border-strong);
-    padding: 8px;
-    min-height: 120px;
-    background:
-        linear-gradient(var(--rule) 1px, transparent 1px),
-        #fffefa;
-    background-size: 100% 28px, auto;
-    border-radius: 8px;
-}
-
 footer {
     margin-top: 14px;
 }
@@ -507,10 +488,6 @@ code {
 
     .horizontal {
         flex-direction: column;
-    }
-
-    #stack-panel {
-        width: 100%;
     }
 
     header {

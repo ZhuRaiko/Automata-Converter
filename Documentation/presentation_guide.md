@@ -19,7 +19,7 @@ Project name, team members, course, date, and app link.
 | Page | Input | Output |
 |---|---|---|
 | Regex -> DFA | one of two regex presets | minimized DFA plus animated string acceptance |
-| CFG -> PDA | one of two converted CFG presets | compact PDA-style flow plus stack animation |
+| CFG -> PDA | one of two converted CFG presets | compact PDA-style READ flow plus animated input progress |
 
 ### 4. Architecture
 
@@ -60,7 +60,7 @@ green/red result.
 1. Open `/cfg`.
 2. Choose a preset converted CFG.
 3. Enter strings and simulate one.
-4. Point out READ nodes, the active transition, and the stack panel.
+4. Point out READ nodes, the active transition, and the current-character tape.
 
 ### 9. Limitations
 
@@ -101,4 +101,4 @@ frontend framework or build system.
 - [ ] Regex string rows update after conversion.
 - [ ] Regex **Simulate** animates accepted and rejected strings.
 - [ ] `/cfg` renders both preset flows.
-- [ ] CFG **Simulate** updates the stack and final result.
+- [ ] CFG **Simulate** updates the active READ flow and final result.

@@ -1,6 +1,6 @@
 # Frameworks and Libraries
 
-The project uses a deliberately small stack.
+The project uses a deliberately small set of tools.
 
 ## Flask
 

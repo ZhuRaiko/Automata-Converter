@@ -1,11 +1,5 @@
 /* CFG / PDA page */
 
-#cfg-diagram-section {
-    display: flex;
-    gap: 14px;
-    align-items: stretch;
-}
-
 .cfg-visual-main {
     flex: 1 1 auto;
     min-width: 0;
@@ -155,49 +149,8 @@
     flex: 1 1 auto;
 }
 
-#stack-contents {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.stack-box {
-    padding: 7px 8px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: #fffefa;
-    color: var(--navy);
-    text-align: center;
-    font-weight: 800;
-    font-family: Consolas, Monaco, "Courier New", monospace;
-    transition: background 0.2s ease-out, border-color 0.2s ease-out;
-}
-
-.stack-top {
-    border-color: var(--primary);
-    background: var(--teal-soft);
-    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
-}
-
-@keyframes stack-push {
-    0%   { background: rgba(35, 138, 73, 0.85); transform: scale(1.16); }
-    100% { background: #fffefa;                 transform: scale(1.0); }
-}
-
-@keyframes stack-pop {
-    0%   { background: rgba(196, 61, 54, 0.85); transform: scale(1.16); }
-    100% { background: #fffefa;                 transform: scale(1.0); }
-}
-
-.stack-box.push { animation: stack-push 0.5s ease-out; }
-.stack-box.pop  { animation: stack-pop  0.5s ease-out; }
-
 @media (max-width: 700px) {
     .cfg-switcher {
         grid-template-columns: 1fr;
-    }
-
-    #cfg-diagram-section {
-        flex-direction: column;
     }
 }

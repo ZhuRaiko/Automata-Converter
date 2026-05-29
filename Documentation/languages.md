@@ -26,7 +26,7 @@ JavaScript is used for:
 - building Cytoscape graph elements
 - animating DFA paths
 - running the current preset CFG flow page
-- updating the CFG stack visualization
+- updating the CFG input tape and active READ-flow visualization
 
 The frontend is intentionally plain JavaScript, without React, Vite, or npm.
 That keeps the project runnable with only Python and a browser.

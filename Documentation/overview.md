@@ -54,7 +54,7 @@ JavaScript specifications for the two preset languages.
       |
       +-- renders a compact PDA-style flowchart for the selected language
       +-- checks strings with a matching built-in DFA specification
-      +-- animates READ states and a stack panel
+      +-- animates READ states, active transitions, and input progress
 ```
 
 ## Backend API Reference

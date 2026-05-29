@@ -10,16 +10,16 @@ for demonstrating automata conversions and string acceptance animations."
 ## Slide 2: Motivation
 
 "In automata theory, a lot of the learning happens through diagrams: NFAs,
-DFAs, PDAs, and stacks. Static diagrams are useful, but they do not show how a
+DFAs, and PDAs. Static diagrams are useful, but they do not show how a
 string moves through the machine. This project turns those ideas into an
 interactive browser tool."
 
 ## Slide 3: What It Does
 
 "The app has two main pages. The Regex page takes one of our preset regular
-expressions, builds the automata pipeline in the backend, renders the minimized
-DFA, and animates strings through it. The CFG page shows two converted CFG
-presets and animates a compact PDA-style recognition flow with a stack panel."
+expressions, renders the matching minimized DFA, and animates strings through
+it. The CFG page shows two converted CFG presets and animates a compact
+PDA-style READ flow for those fixed examples."
 
 ## Slide 4: Architecture
 
@@ -55,8 +55,8 @@ green; otherwise it turns red."
 
 "Now I will open the CFG page. I choose one converted CFG preset and the app
 shows its compact PDA-style flow automatically. During simulation, the READ
-states light up, the active edge is highlighted, and the stack panel changes
-as the input is processed."
+states light up, the active edge is highlighted, and the current-character tape
+tracks input progress."
 
 ## Slide 9: Limitations
 

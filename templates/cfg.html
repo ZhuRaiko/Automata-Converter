@@ -64,7 +64,7 @@
             </div>
         </section>
 
-        <!-- Diagram + Stack Panel -->
+        <!-- Diagram Panel -->
         <section id="cfg-diagram-section" class="panel horizontal">
             <div class="cfg-visual-main">
                 <div id="cfg-current-char" class="current-char">
@@ -76,21 +76,17 @@
                 </div>
                 <div id="cy-pda" class="cytoscape-container"></div>
             </div>
-            <aside id="stack-panel">
-                <h3>Stack</h3>
-                <div id="stack-contents" class="stack-contents">Empty Stack</div>
-            </aside>
         </section>
 
         <!-- Step Viewer placed BELOW the diagram so a long step list scrolls
-             internally instead of pushing the visualization off-screen. -->
+             internally instead of moving the visualization off-screen. -->
         <section id="cfg-steps" class="panel">
             <h2>Steps</h2>
             <ol id="cfg-steps-list"></ol>
         </section>
 
         <footer>
-            <p>PDA simulation shows stack updates live.</p>
+            <p>PDA simulation highlights READ states, active transitions, and input progress.</p>
         </footer>
     </div>
 

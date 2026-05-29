@@ -1,51 +1,318 @@
 # Automata Converter Program
 
-*A web app that visualizes regular-language conversion and preset
-CFG/PDA-style recognition flows.*
+*Regex -> DFA and CFG -> PDA-style visual simulation*
 
-**Authors:** _[Your name(s)]_  
-**Course / Section:** _[Code, section, semester]_  
+**Authors:** _[Member 1], [Member 2], [Member 3], [Member 4]_  
+**Course / Section:** _[Course, section, semester]_  
 **Date:** _[Submission date]_  
-**Live application:** _[Insert your deployment URL here]_  
+**Application Link:** _[Insert local, hosted, or repository link here]_  
 **Source:** <https://github.com/ZhuRaiko/Automata-Converter>
 
-## Abstract
+## Introduction
 
-The project demonstrates automata-theory concepts through a Flask and
-vanilla-JavaScript web application. The current Regex -> DFA page loads a
-hardcoded minimized DFA for one of two preset regular languages, renders it,
-and animates string acceptance. The CFG page presents two fixed converted CFG
-presets and animates compact PDA-style recognition flows with a live stack
-panel. General backend modules for regex conversion, CFG-to-PDA conversion,
-and automata simulation are also included for extension and testing.
+The Automata Converter Program is an educational web application for showing
+how formal-language expressions can be represented and simulated as automata.
+It focuses on two classroom demonstrations:
 
-## 1. Background
+1. converting the idea of a regular expression into a deterministic finite
+   automaton (DFA) visualization
+2. presenting converted context-free grammar (CFG) presets as compact
+   PDA-style recognition flows
 
-| Representation | Machine | Language class |
-|---|---|---|
-| Regular expression | NFA / DFA | Regular |
-| Context-free grammar | PDA | Context-free |
+The current interface is intentionally preset-based. Instead of asking the
+user to build an automaton step by step, the program immediately renders the
+selected visualization and lets the user test strings against it. This makes
+the application useful for demonstrations, defense presentations, and
+students who need to observe how input symbols move through a machine.
 
-The regular-language backend is implemented as a complete pipeline:
+The web app is built with Flask, HTML, CSS, vanilla JavaScript, and
+Cytoscape.js. The frontend currently uses hardcoded automata data for the
+two selected language families, while the Python backend still contains
+general-purpose algorithm modules for extension and testing.
+
+## Regular Expressions
+
+Regular expressions are formal descriptions of regular languages. In this
+program, the regular expressions define patterns over either the alphabet
+`{a, b}` or the binary alphabet `{0, 1}`. The symbol `+` is used as union,
+not as the programming-regex "one or more" operator.
+
+### Regular Expression 1 -- over alphabet `{a, b}`
 
 ```text
-regex -> Thompson NFA -> subset-construction DFA -> Hopcroft minimum DFA
+(aba+bab)(a+b)*(bab)(a+b)*(a+b+ab+ba)(a+b+aa)*
 ```
 
-The current browser UI uses hardcoded DFA data for the regex presets rather
-than calling that backend pipeline. The context-free side has two layers:
+This matches any string that opens with either `aba` or `bab`, has `bab`
+somewhere in the middle, and wraps up with one of `a`, `b`, `ab`, or `ba`
+followed by any trailing characters.
 
-- reusable backend code for converting arbitrary CFG text to a top-down PDA
-  and searching for an accepting PDA path
-- the current browser page, which is a preset demonstration of two converted
-  CFG languages using compact JavaScript flowcharts
+Think of it as:
 
-## 2. Architecture
+```text
+specific start -> anything -> bab -> anything -> specific end
+```
+
+### Regular Expression 2 -- over binary alphabet `{0, 1}`
+
+```text
+((101+111+101)+(1+0+11))(1+0+01)*(111+000+101)(1+0)*
+```
+
+This matches any binary string that starts with one of a handful of short
+patterns (`101`, `111`, `1`, `0`, or `11`), then has a required block of either
+`111`, `000`, or `101` somewhere in it, then ends however it wants.
+
+Think of it as:
+
+```text
+specific start -> anything -> required middle block -> anything
+```
+
+### Structural Parallel Between The Two Regexes
+
+Both regular expressions follow the same general structure:
+
+```text
+(fixed prefix choices) . Sigma* . (fixed middle block) . Sigma* . (constrained tail) . Sigma*
+```
+
+The shape is identical; only the alphabet and the specific anchor strings
+differ.
+
+## Deterministic Finite Automaton (DFA)
+
+A deterministic finite automaton is a machine that reads one input symbol at a
+time and always has exactly one next state for each valid transition. The DFA
+does not use memory beyond its current state. Because the two regular
+expressions define regular languages, they can be recognized by DFAs.
+
+In the current program, the Regex -> DFA page uses hardcoded minimized DFA
+objects in `static/js/regex.js`. When the user selects a preset, the matching
+DFA is rendered automatically in the browser. There is no longer a separate
+"convert" button because the selected DFA is already predetermined.
+
+### DFA for Regular Expression 1
+
+The first DFA processes the alphabet `{a, b}`. Its start state branches
+depending on whether the input begins with `a` or `b`. Some paths move toward
+the accepting route, while invalid paths enter a rejecting state. This matches
+the strict structure of the first regular expression, where the string must
+begin with `aba` or `bab`, later include the required `bab` segment, and then
+complete the required ending pattern.
+
+The accepting state represents a completed match of the required structure.
+Once the machine reaches acceptance, remaining suffix behavior follows the
+allowed ending portion of the expression.
+
+### DFA for Regular Expression 2
+
+The second DFA processes the binary alphabet `{0, 1}`. Its states track the
+progress of a binary string through the required pattern groups. The automaton
+uses transitions for `0` and `1` to determine whether the string has reached
+the required checkpoint from `{111, 000, 101}` and can proceed to acceptance.
+
+This DFA is useful for showing that even when an expression contains several
+alternatives and repeated binary sections, the final machine still processes
+the string one symbol at a time.
+
+### Program-Specific DFA Features
+
+The DFA page includes several features that make the simulation easier to
+follow:
+
+- the DFA appears immediately after selecting a preset
+- five string rows can be tested without rebuilding the graph
+- each row has its own `Simulate` button
+- pressing `Simulate` automatically scrolls to the visualizer
+- the current state pulses during animation
+- the active transition is highlighted
+- the input tape shows the current and verified characters
+- accepted strings turn the diagram green
+- rejected strings turn the diagram red
+- `Pause` and `Resume` let the user slow down the runtime visualization
+- `Reset` clears the path, tape, statuses, and step log
+
+These details are not part of DFA theory itself, but they are important to the
+program because they make the automaton easier to demonstrate in real time.
+
+## Context-Free Grammar (CFG)
+
+A context-free grammar describes how strings can be generated from production
+rules. In this program, the CFG page uses two converted CFG presets that
+correspond to the same language families as the regular-expression presets.
+The CFG text area is read-only because the current browser page is designed
+for fixed demonstrations rather than arbitrary grammar entry.
+
+### CFG for Preset 1
+
+```text
+S -> P A bab A Q R
+P -> aba | bab
+A -> aA | bA | epsilon
+Q -> a | b | ab | ba
+R -> aR | bR | aaR | epsilon
+```
+
+This grammar mirrors the structure of the first regular expression. `P`
+handles the required initial choice between `aba` and `bab`. `A` represents a
+free sequence over `{a, b}`. The fixed `bab` in the start production preserves
+the required middle segment. `Q` handles the required final choice, and `R`
+handles the final repeated suffix.
+
+### CFG for Preset 2
+
+```text
+S -> X Y Z W
+X -> 101 | 111 | 1 | 0 | 11
+Y -> 1Y | 0Y | 01Y | epsilon
+Z -> 111 | 000 | 101
+W -> 1W | 0W | epsilon
+```
+
+This grammar mirrors the structure of the second regular expression. `X`
+handles the opening alternatives, `Y` handles the repeated middle pieces,
+`Z` represents the required binary checkpoint, and `W` allows the remaining
+binary suffix.
+
+The current CFG page does not accept new grammar text from the user. Instead,
+the user chooses between these two presets and observes the corresponding
+PDA-style flow.
+
+## Pushdown Automaton (PDA)
+
+A pushdown automaton is a finite-state machine with a stack. In formal theory,
+the stack allows a PDA to recognize context-free languages that cannot be
+recognized by a DFA alone.
+
+The current frontend uses a compact PDA-style flowchart for demonstration.
+Because the two selected language families are regular, the displayed
+recognition flow does not need a visible runtime stack to decide acceptance.
+For that reason, the current UI focuses on READ states, active transitions,
+the current-character tape, and the final ACCEPT or REJECT result.
+
+This is an important accuracy point: the browser PDA page is best described as
+a fixed PDA-style recognition visualization for the selected presets, not as a
+full arbitrary CFG-to-PDA renderer. The backend still contains general
+CFG-to-PDA and PDA simulation modules, but the current `/cfg` page uses its
+own hardcoded JavaScript flow.
+
+### PDA-Style Flow for Preset 1
+
+For the first preset, the PDA-style flow reads symbols from the alphabet
+`{a, b}` and moves through READ nodes that correspond to the same recognition
+structure used by the DFA. Invalid paths reach a reject state, while a valid
+path reaches an ACCEPT state after the required expression structure is
+completed.
+
+### PDA-Style Flow for Preset 2
+
+For the second preset, the PDA-style flow reads symbols from `{0, 1}` and
+tracks the binary pattern through its READ nodes. The flow highlights the
+current state and active transition so the user can see how the input is being
+verified.
+
+The transition into ACCEPT keeps the triangle marker `Delta` in the diagram.
+This marker is retained as part of the PDA-style notation and visual identity
+of the flow.
+
+## User Manual
+
+### Running the Program
+
+Install Flask, start the application, and open the local server:
+
+```bash
+pip install flask
+python app.py
+```
+
+Then open:
+
+```text
+http://127.0.0.1:5000/
+```
+
+The home page provides two modes:
+
+- Regex -> DFA
+- CFG -> PDA
+
+### Regex -> DFA Page
+
+1. Open `/regex`.
+2. Select one of the two regex presets.
+3. Enter test strings into the five input rows.
+4. Use `Simulate` on a row to animate that specific string.
+5. Use `Run` to animate the first string row.
+6. Use `Pause` and `Resume` to control animation speed.
+7. Use `Reset` to clear the visualization state.
+
+During simulation, the DFA state lights up, the active edge is shown, and the
+input tape tracks the current symbol.
+
+### CFG -> PDA Page
+
+1. Open `/cfg`.
+2. Select one of the converted CFG presets.
+3. Review the read-only CFG text.
+4. Enter test strings into the input rows.
+5. Use `Simulate` to scroll to the flowchart and animate the selected string.
+6. Use `Pause`, `Resume`, and `Reset` as needed.
+
+During simulation, the READ nodes and transitions show how the input is being
+processed. The current-character tape shows which symbol is being verified.
+
+## Sample Outputs
+
+The following examples are intended for demonstration. The interface remains
+the final authority because it uses the actual hardcoded transition tables.
+
+### Sample Outputs for Preset 1
+
+```text
+Sample accepted string: abababababa
+Expected result: Accepted
+```
+
+This string follows the required structure of the first expression and reaches
+the accepting state.
+
+```text
+Sample rejected string: aaa
+Expected result: Rejected
+```
+
+This string fails the required expression structure and enters a rejecting
+path.
+
+### Sample Outputs for Preset 2
+
+```text
+Sample accepted string: 101111101
+Expected result: Accepted
+```
+
+This binary string satisfies the required checkpoint behavior of the second
+expression and reaches the accepting state.
+
+```text
+Sample rejected string: 0011
+Expected result: Rejected
+```
+
+This string does not complete the required binary recognition path and is
+rejected by the current hardcoded automaton.
+
+## Program Architecture
+
+The application is organized into a small Flask backend and a browser-based
+frontend.
 
 ```text
 Browser
-|-- /regex: preset selector, DFA diagram, string rows, animation
-|-- /cfg: converted CFG presets, compact flowchart, stack panel
+|-- /regex: preset selector, DFA diagram, string rows, input tape
+|-- /cfg: converted CFG presets, PDA-style READ flow, input tape
 |
 Flask app.py
 `-- algorithms/
@@ -57,85 +324,52 @@ Flask app.py
     `-- string_checker_pda.py
 ```
 
-The frontend uses plain HTML, CSS, and JavaScript. Cytoscape.js is loaded from
-a CDN, so no Node.js or npm build step is required. Flask is the only Python
-dependency.
+The current UI does not rely on the backend algorithms to draw its graphs.
+Instead, it uses fixed JavaScript specifications for stable demonstrations.
+The backend algorithm modules remain useful for testing, extension, and
+explaining the original conversion pipeline.
 
-## 3. Implemented Algorithms
+## Unique Features of the Current Program
 
-**Thompson's construction.** `thompson.py` parses regexes with recursive
-descent and builds NFA fragments for symbols, epsilon, concatenation, union,
-and Kleene star.
+- The DFA and PDA-style diagrams render automatically.
+- The old conversion step is removed from the frontend workflow.
+- Both pages use input tapes to make the current character easier to follow.
+- The `Simulate` button scrolls directly to the visualization.
+- `Pause` and `Resume` help users keep up with the animation.
+- The PDA page keeps the flowchart design while avoiding misleading stack
+  visuals for regular preset languages.
+- The visual design follows an academic notebook style with navy and teal
+  accents.
+- Cytoscape.js provides graph rendering without requiring a frontend build
+  system.
 
-**Subset construction.** `subset_construction.py` turns reachable epsilon
-closures of NFA states into DFA states. It adds a trap state only when needed.
+## Troubleshooting
 
-**Hopcroft minimization.** The raw DFA is minimized by partition refinement,
-then renumbered from the start state for stable display.
+| Problem | Suggested Fix |
+|---|---|
+| Diagram does not appear | Check internet access because Cytoscape.js is loaded from a CDN. |
+| String is rejected unexpectedly | Make sure the string uses the correct alphabet for the selected preset. |
+| Animation is too fast | Use `Pause` and `Resume` during runtime. |
+| CFG text cannot be edited | This is expected; the CFG page currently uses fixed presets. |
+| PDA page does not show a stack | This is intentional. The current frontend uses regular preset languages and focuses on READ-state flow. |
+| App does not start | Install Flask and run `python app.py` from the project folder. |
 
-**DFA checking.** `string_checker_dfa.py` walks the DFA in linear time and
-returns both acceptance and the visited state path.
+## Limitations
 
-**NFA checking.** `string_checker_nfa.py` uses BFS over `(state, input_index)`
-configurations to reconstruct one accepting path. This backend endpoint is
-available, although the current UI no longer has an NFA tab.
-
-**CFG-to-PDA construction.** `cfg_to_pda.py` builds a three-state top-down PDA
-from grammar text, with one transition per production and one matching
-transition per terminal.
-
-**PDA checking.** `string_checker_pda.py` uses BFS over
-`(remaining_input, stack)` configurations. This replaced the older
-deterministic LL-style heuristic and can find accepting paths that require
-backtracking, subject to a search cap.
-
-## 4. Current User Interface
-
-The `/regex` page offers two preset regexes. The selected preset's DFA is
-displayed automatically, and switching presets immediately replaces the
-visualization. Five string rows can be checked and simulated. The animation
-highlights the current state, the traversed edge, and the currently consumed
-character.
-
-The `/cfg` page offers two read-only converted CFG presets. The app renders a
-compact flowchart automatically for the selected language. String checks and
-animations are handled in `static/js/cfg.js` with a built-in DFA specification
-and a visual stack.
-
-## 5. Limitations
-
-- Regex atoms are single alphanumeric characters.
-- `+` means union, not "one or more".
-- The current regex UI renders only the minimized DFA.
-- The current CFG UI is limited to the two preset languages.
-- The general backend PDA search can become expensive for ambiguous or
-  left-recursive grammars.
-
-## 6. Running Locally
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install flask
-python app.py
-```
-
-Open `http://127.0.0.1:5000/`.
+- The frontend currently supports two fixed regex presets and two fixed CFG
+  presets.
+- The regex UI renders the minimized DFA only.
+- The CFG UI is not an arbitrary grammar editor.
+- The backend still contains broader automata algorithms, but the current
+  browser interface is hardcoded for stable demonstrations.
+- The backend PDA search can become expensive for ambiguous or left-recursive
+  grammars.
 
 ## References
 
 1. Sipser, M. *Introduction to the Theory of Computation*, 3rd ed.
-2. Hopcroft, Motwani, Ullman. *Introduction to Automata Theory, Languages,
+2. Hopcroft, Motwani, and Ullman. *Introduction to Automata Theory, Languages,
    and Computation*, 3rd ed.
-3. Thompson, K. "Regular expression search algorithm." *CACM* 11.6 (1968).
-4. Hopcroft, J. E. "An n log n algorithm for minimizing states in a finite
-   automaton." Stanford TR STAN-CS-71-190, 1971.
-5. Cytoscape.js documentation: <https://js.cytoscape.org/>
-
-## Companion Docs
-
-- [`overview.md`](./overview.md)
-- [`algorithms.md`](./algorithms.md)
-- [`user_manual.md`](./user_manual.md)
-- [`presentation_guide.md`](./presentation_guide.md)
-- [`reviewer.md`](./reviewer.md)
+3. Thompson, K. "Regular expression search algorithm." *Communications of the
+   ACM*, 1968.
+4. Cytoscape.js documentation: <https://js.cytoscape.org/>
