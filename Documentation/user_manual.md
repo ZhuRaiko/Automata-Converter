@@ -49,6 +49,7 @@ path.
 | Button | Action |
 |---|---|
 | Run | Animate the first test string input. |
+| Pause / Resume | Temporarily stop and continue the current animation. |
 | Reset | Clear highlights, statuses, and step log. |
 | Simulate | Animate the string from that specific row. |
 
@@ -89,8 +90,8 @@ The CFG text area is read-only. Choose one of the two presets and the page
 automatically renders the matching flow.
 
 The page renders a compact PDA-style flowchart rather than the full general
-PDA from the backend. It focuses on READ states, active transitions, and input
-progress for the selected preset.
+PDA notation. It focuses on READ states, active transitions, input progress,
+and derivation feedback for the selected preset.
 
 ### CFG Test Strings
 
@@ -107,29 +108,28 @@ During a run:
 - READ states light up as the string is consumed
 - the active transition uses the orange dashed "marching" style
 - the current character tape moves forward as input symbols are verified
+- the CFG derivation checker shows how the string follows the grammar shape
 - on an accepting run, the flow reaches an ACCEPT node
 - rejected runs turn the diagram red
 
-## Removed / Irrelevant Backend CFG/PDA APIs
+## Legacy Reference Code
 
-The current app no longer exposes these endpoints from `app.py`. They are
-irrelevant to the visible frontend workflow:
+The renamed `(IRRELEVANT)` `.py` files in `algorithms/` are kept as legacy
+reference code. They document earlier implementation work and may be useful if
+the project is expanded again.
 
-- `(IRRELEVANT) POST /api/cfg/pda`
-- `(IRRELEVANT) POST /api/cfg/check`
-
-The current `/cfg` page uses the fixed JavaScript flow in `static/js/cfg.js`.
-The current `/regex` page uses hardcoded DFA data in `static/js/regex.js`.
+They are not used by the current visible app. The current `/cfg` page uses the
+fixed JavaScript flow in `static/js/cfg.js`, and the current `/regex` page uses
+hardcoded DFA data in `static/js/regex.js`.
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
 | Diagram does not appear | Check browser console and network access. Cytoscape is loaded from a CDN. |
-| Regex conversion fails | Check parentheses and unsupported operators. `+` is union only. |
 | String rows stay "Not Checked" | Switch presets or type in a string row to trigger checking again. |
 | CFG text cannot be edited | This is expected in the current UI; the CFG page uses fixed presets. |
-| CFG result differs from an arbitrary grammar you expected | The current CFG page is not an arbitrary CFG parser; use the backend endpoints or extend the UI for that. |
+| Animation is too fast | Use Pause / Resume to control the pace during runtime. |
 
 ## Related Docs
 

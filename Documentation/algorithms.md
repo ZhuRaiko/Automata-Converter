@@ -1,215 +1,61 @@
-# Algorithms
+# Current Program Logic
 
-This document describes the algorithm code that exists in the project and
-how the current UI uses it.
+This document describes the logic used by the current visible application.
+The app is now preset-based: the automata were manually derived for the
+activity, then implemented as hardcoded browser visualizations.
 
-## Current UI Versus Backend Scope
+## Active Logic
 
-The backend contains `(IRRELEVANT)` general algorithm modules for both regular
-languages and context-free grammars.
+The current app has two active JavaScript-driven flows:
 
-The current frontend is more focused:
+- `static/js/regex.js` powers the Regex -> DFA page.
+- `static/js/cfg.js` powers the CFG -> PDA-style page.
 
-- `/regex` uses two hardcoded minimized DFA objects in `static/js/regex.js`.
-  The renamed `(IRRELEVANT)` backend regex pipeline is not called by the
-  current UI.
-- `/cfg` shows two fixed converted CFG presets and animates a compact
-  PDA-style flowchart implemented in `static/js/cfg.js`. It does not currently
-  call the general CFG/PDA backend endpoints.
+`app.py` only serves the pages. It does not run the old Python algorithm
+modules during the current frontend workflow.
 
-The backend CFG/PDA modules are still useful as reusable algorithm code and as
-an extension point if the UI is expanded again.
+## Regex -> DFA
 
-## Regex Notation
+The Regex -> DFA page loads one of two prepared DFA specifications. Each
+specification contains:
 
-Supported by `(IRRELEVANT) algorithms/(IRRELEVANT) thompson.py`:
+- states
+- alphabet
+- transitions
+- start state
+- accepting states
+- fixed diagram positions
 
-| Meaning | Forms | Example |
-|---|---|---|
-| Union | `|`, `U`, `+` | `a+b` means `a|b` |
-| Concatenation | Juxtaposition | `abc` |
-| Kleene star | `*` | `a*` |
-| Epsilon | `epsilon character`, `E` | `(a+E)b` |
-| Grouping | `( )` | `(a+b)*abb` |
+When a user types a string, the page checks the string locally against the
+selected DFA. During simulation, the same path is used to highlight states,
+highlight transitions, update the input tape, and display the final accepted
+or rejected result.
 
-`+` is algebraic union, not programming-regex "one or more". Multi-character
-symbols, character classes, escapes, `?`, and repetition ranges are out of
-scope.
+## CFG -> PDA-Style Flow
 
-## Thompson's Construction: Regex -> NFA
+The CFG page loads one of two converted CFG presets. The page renders a compact
+PDA-style READ flow that matches the selected preset language.
 
-`(IRRELEVANT) thompson.py` parses the regex with recursive descent:
+The active logic handles:
 
-```text
-union < concatenation < star < atom
-```
+- preset selection
+- read-only CFG display
+- string validation
+- current-character tape updates
+- READ-state and transition highlighting
+- CFG derivation feedback
+- final ACCEPT or REJECT result
 
-Then it recursively builds NFA fragments:
+The derivation checker is included to help users see how the tested string
+matches the grammar structure. Nullable grammar choices are shown with epsilon
+so the derivation does not appear to skip a symbol without explanation.
 
-| AST node | Fragment |
-|---|---|
-| Symbol | Two states with one labeled edge. |
-| Epsilon | Two states with one epsilon edge. |
-| Concat | Connect left accept to right start with epsilon. |
-| Union | New start branches to both fragments; both accepts join a new final. |
-| Star | New start has a bypass edge and an entry edge; child accept loops back. |
+## Legacy Reference Files
 
-Each compiled NFA has one start state and one final state. State numbering is
-reset on every compile, so the same regex gives stable state names.
+The renamed `(IRRELEVANT)` `.py` files in `algorithms/` are kept as legacy
+reference code. They document earlier implementation work and may be useful if
+the project is expanded again, but they are not part of the current visible
+program flow.
 
-## Subset Construction and Hopcroft Minimization
-
-`(IRRELEVANT) subset_construction.py` converts an NFA dictionary to a minimized DFA.
-
-1. Build epsilon closures from the NFA transition list.
-2. Start with `epsilon_closure({start_state})`.
-3. Use BFS over reachable subsets of NFA states.
-4. For each subset and input symbol, compute
-   `epsilon_closure(move(subset, symbol))`.
-5. Add a trap state only if at least one transition would otherwise be
-   undefined.
-6. Mark every subset containing the NFA final state as accepting.
-7. Run Hopcroft partition refinement.
-8. Renumber the minimized DFA states in BFS order from the start state.
-
-Returned DFA shape:
-
-```json
-{
-  "states": [0, 1],
-  "alphabet": ["a", "b"],
-  "transitions": {
-    "0": { "a": 1, "b": 0 }
-  },
-  "start_state": 0,
-  "accept_states": [1]
-}
-```
-
-## DFA String Checker
-
-`(IRRELEVANT) string_checker_dfa.py` walks the DFA from its start state through the input
-string.
-
-If a transition is missing, the checker rejects immediately and returns the
-path visited so far.
-
-Return shape:
-
-```json
-{
-  "valid": true,
-  "path": [0, 1, 2]
-}
-```
-
-The current `/regex` page now performs the same check locally in JavaScript
-against its hardcoded DFA objects.
-
-## NFA String Checker
-
-`(IRRELEVANT) string_checker_nfa.py` performs BFS over configurations:
-
-```text
-(state, input_position)
-```
-
-It reconstructs one accepting path if the string is accepted. If no accepting
-configuration is reachable, it reconstructs a path to the configuration that
-consumed the most input.
-
-This former endpoint is now `(IRRELEVANT) POST /api/regex/nfa/check`; the current
-`/regex` page does not display an NFA tab or call this route.
-
-## CFG -> PDA Construction
-
-`(IRRELEVANT) cfg_to_pda.py` parses grammar text and creates a top-down PDA.
-
-Accepted CFG forms:
-
-| Meaning | Forms |
-|---|---|
-| Arrow | `->`, Unicode right arrow, Unicode double arrow |
-| Alternative | `|` |
-| Epsilon | Greek epsilon/lambda variants, `^`, `epsilon`, `lambda`, `null`, `nil`, `eps`, `n`, or an empty alternative |
-
-One production is written per line. The first nonterminal encountered is the
-start symbol.
-
-The generated PDA has:
-
-- `q0`: start state
-- `q1`: work state
-- `q2`: accept state
-- a bottom marker of `Z`, or `$` if `Z` is already used by the grammar
-
-Push convention:
-
-```text
-push[0] becomes the top of the stack
-push[-1] becomes deepest among the pushed symbols
-```
-
-So `S -> aSb` is stored as `push = ["a", "S", "b"]`.
-
-## PDA Simulator
-
-`(IRRELEVANT) string_checker_pda.py` is now a BFS path finder, not a deterministic
-LL(1)-scoring simulator.
-
-It searches configurations of:
-
-```text
-(remaining_input, stack_tuple)
-```
-
-For each configuration it tries:
-
-1. terminal-matching transitions that consume the next input character
-2. production transitions that expand the stack top without consuming input
-
-It tracks parents so it can reconstruct one successful accepting path. If no
-accepting path is found, it returns a path to the configuration that consumed
-the most input. A `max_steps` cap, currently `20000`, prevents unbounded
-searches.
-
-Return shape:
-
-```json
-{
-  "valid": false,
-  "steps": [
-    {
-      "state": "q1",
-      "remaining_input": "abb",
-      "stack": ["Z", "S"],
-      "applied_idx": 3
-    }
-  ],
-  "error": "optional message if the step cap is reached"
-}
-```
-
-## CFG Page Flow
-
-The current `/cfg` page is implemented separately from the general PDA
-backend. It offers two fixed converted CFGs and uses `static/js/cfg.js` to:
-
-- render a compact READ/ACCEPT/REJECT flowchart
-- check strings with a built-in DFA specification for the selected language
-- animate flowchart transitions with marching edges
-- update the current-character tape and step log as characters are read
-
-This is why the CFG UI looks like a compact recognition flow rather than the
-full textbook three-state PDA generated by `(IRRELEVANT) cfg_to_pda.py`.
-
-## Practical Limits
-
-- Regex atoms are single alphanumeric characters.
-- Regex whitespace is stripped by the current frontend before selecting the
-  hardcoded DFA.
-- `+` means union only.
-- The backend PDA search can still run into very large searches for ambiguous
-  or left-recursive grammars.
-- The current CFG page is limited to the two preset languages in
-  `static/js/cfg.js`.
+The current documentation should treat those files as archived references,
+not as active features.

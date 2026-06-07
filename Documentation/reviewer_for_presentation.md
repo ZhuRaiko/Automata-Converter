@@ -76,10 +76,10 @@ The assigned expressions were manually analyzed and converted into DFA
 structures first. The hardcoded browser implementation keeps the final
 demonstration consistent and avoids unexpected runtime conversion errors.
 
-**Does the CFG page use a full stack simulation?**  
+**How should the CFG page be described?**  
 The current page is a compact PDA-style recognition visualization. It focuses
-on READ-flow progress, input tracking, and derivation feedback instead of
-displaying a general-purpose PDA stack.
+on READ-flow progress, input tracking, and derivation feedback for the two
+prepared CFG presets.
 
 **What makes the project useful for learning?**  
 It turns static automata diagrams into step-by-step animations. Students can
@@ -100,10 +100,17 @@ string is accepted or rejected.
 | `static/css/regex.css` | Regex page styling. |
 | `static/css/cfg.css` | CFG page styling. |
 
+## Legacy Reference Code
+
+The renamed `(IRRELEVANT)` `.py` files in `algorithms/` are kept as legacy
+reference code. They document earlier implementation work and may be useful if
+the project is expanded again, but they are not used by the current visible
+app.
+
 ## Current Scope
 
 - Supports two Regex -> DFA presets.
 - Supports two CFG -> PDA-style presets.
-- Does not accept arbitrary regex or CFG input in the current UI.
+- Uses prepared regex and CFG examples in the current UI.
 - Uses Cytoscape.js from a CDN for graph rendering.
 - Runs locally with Flask and no frontend build step.

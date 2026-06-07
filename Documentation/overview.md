@@ -1,33 +1,27 @@
 # Project Overview
 
 This project is a lightweight educational web app for visualizing automata
-conversions and string acceptance.
+recognition through prepared examples.
 
 The current browser UI has two pages:
 
 1. Regex -> DFA
-2. Converted CFG -> compact PDA-style flow
+2. CFG -> PDA-style flow
 
-The Python backend still contains `(IRRELEVANT)` reusable algorithm modules.
-The current frontend no longer depends on those algorithms for its
-visualizations: both the regex DFA page and CFG flow page use hardcoded
-JavaScript specifications for the two preset languages.
+Both pages are intentionally preset-based. The automata were manually derived
+for the activity and then implemented as hardcoded JavaScript visualizations
+so the demonstration remains stable and easy to follow.
 
 ## How It Works
 
-- `app.py` is the Flask application. It serves the three pages for the current
-  hardcoded frontend workflow.
-- `algorithms/` contains Python implementations that are currently irrelevant
-  to the visible hardcoded frontend workflow:
-  - `(IRRELEVANT) thompson.py`: regex -> NFA
-  - `(IRRELEVANT) subset_construction.py`: NFA -> minimized DFA
-  - `(IRRELEVANT) string_checker_dfa.py`: DFA string checker
-  - `(IRRELEVANT) string_checker_nfa.py`: BFS single-path NFA checker
-  - `(IRRELEVANT) cfg_to_pda.py`: general CFG -> PDA construction
-  - `(IRRELEVANT) string_checker_pda.py`: BFS PDA path finder
-- `templates/` contains the HTML pages.
-- `static/js/regex.js` powers the Regex -> DFA page.
-- `static/js/cfg.js` powers the converted CFG flow page.
+- `app.py` is the Flask application. It serves the home page, Regex -> DFA
+  page, and CFG -> PDA-style page.
+- `templates/` contains the HTML page structure.
+- `static/css/` contains the shared academic notebook theme and page-specific
+  styling.
+- `static/js/regex.js` powers the hardcoded DFA visualization and simulation.
+- `static/js/cfg.js` powers the converted CFG presets, PDA-style flow, input
+  tape, and derivation checker.
 - Cytoscape.js is loaded from a CDN for graph rendering. No Node/npm build
   step is needed.
 
@@ -42,7 +36,7 @@ JavaScript specifications for the two preset languages.
       |
       +-- loads the matching hardcoded DFA object
       +-- renders the DFA with Cytoscape
-      +-- checks strings locally and returns { valid, path }
+      +-- checks strings locally
       +-- animates the DFA path
 
 
@@ -52,27 +46,20 @@ JavaScript specifications for the two preset languages.
       v
 [ static/js/cfg.js ]
       |
-      +-- renders a compact PDA-style flowchart for the selected language
-      +-- checks strings with a matching built-in DFA specification
-      +-- animates READ states, active transitions, and input progress
+      +-- renders a compact PDA-style flowchart
+      +-- checks strings locally
+      +-- updates the CFG derivation checker
+      +-- animates READ states, transitions, and input progress
 ```
 
-## Removed / Irrelevant Backend API Reference
+## Legacy Reference Code
 
-These endpoints are no longer available from the current `app.py`. They are
-listed only as irrelevant legacy references:
+The `algorithms/` folder contains renamed `(IRRELEVANT)` `.py` files from
+earlier versions of the project. They are kept as legacy reference code because
+they document previous implementation work and could help if the project is
+expanded later.
 
-| Endpoint | Purpose |
-|---|---|
-| `(IRRELEVANT) POST /api/regex/nfa` | Compile a regex to an NFA dictionary. |
-| `(IRRELEVANT) POST /api/regex/dfa` | Convert an NFA dictionary to a minimized DFA. |
-| `(IRRELEVANT) POST /api/regex/check` | Check a string against a DFA and return the visited path. |
-| `(IRRELEVANT) POST /api/regex/nfa/check` | Find one accepting NFA path, or the longest partial path on rejection. |
-| `(IRRELEVANT) POST /api/cfg/pda` | Convert CFG text to a PDA dictionary. |
-| `(IRRELEVANT) POST /api/cfg/check` | Run the PDA simulator and return a step trace. |
-
-Note: the current `/cfg` and `/regex` browser pages use hardcoded JavaScript
-data and do not call these legacy API routes.
+They are not used by the current visible app.
 
 ## Running Locally
 
@@ -90,6 +77,8 @@ Open `http://127.0.0.1:5000/`.
 ```text
 project/
 |-- app.py
+|-- requirements.txt
+|-- vercel.json
 |-- algorithms/
 |-- templates/
 |-- static/

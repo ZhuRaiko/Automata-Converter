@@ -6,14 +6,6 @@ assigned regular expressions and converted CFG presets.
 The project is built for classroom demonstrations: choose a preset, test
 strings, and watch the automaton move through its states step by step.
 
-## CV Description
-
-Built an educational Flask web application for visualizing manually derived
-automata from assigned regular expressions and CFG presets. Implemented
-hardcoded DFA and PDA-style flow visualizations with Cytoscape.js, interactive
-string testing, animated state transitions, input-tape tracking, pause/resume
-simulation controls, and CFG derivation feedback for classroom demonstrations.
-
 ## Prominent Features
 
 - Regex -> DFA visualization for two prepared regular-expression languages.

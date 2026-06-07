@@ -4,11 +4,11 @@ The project uses a deliberately small set of tools.
 
 ## Flask
 
-Flask serves the HTML pages and exposes JSON endpoints from `app.py`.
+Flask serves the HTML pages from `app.py`.
 
 It is used because:
 
-- `python app.py` starts the whole application
+- `python app.py` starts the local application
 - the route code is easy to read
 - it is enough for a small educational web app
 - it avoids heavier framework structure
@@ -24,10 +24,10 @@ It is used because:
 - it handles graph nodes and directed edges cleanly
 - elements can be highlighted during animation
 - it works from a CDN
-- it supports both automatic graph layouts and fixed-position flowcharts
+- it supports fixed-position diagrams
 
-The regex page uses Cytoscape for the minimized DFA. The CFG page uses it for
-the preset READ/ACCEPT/REJECT flow diagrams.
+The regex page uses Cytoscape for DFA diagrams. The CFG page uses it for
+PDA-style READ/ACCEPT/REJECT flow diagrams.
 
 ## Vanilla HTML, CSS, And JavaScript
 
@@ -45,4 +45,5 @@ No Node.js, npm, webpack, or Vite step is required.
 - Flask serves `/`, `/regex`, and `/cfg`.
 - The regex frontend loads a hardcoded DFA object and renders it directly.
 - The CFG frontend renders one of two preset flows in JavaScript.
-- The renamed `(IRRELEVANT)` backend CFG/PDA files are kept only as legacy reference code.
+- The renamed `(IRRELEVANT)` `.py` files are kept only as legacy reference
+  code and are not used by the current visible app.
