@@ -1,145 +1,109 @@
-# Reviewer: Automata Converter Program
+# Reviewer Guide: Automata Converter Program
 
-Use this as a defense-prep guide for the current codebase.
+Use this guide to review the current version of the project. The program is a
+Flask-based educational visualizer for manually derived automata examples.
 
-## What The Program Currently Shows
+## Project Summary
 
-The app has two user-facing pages:
+The Automata Converter Program demonstrates how selected formal-language
+patterns can be represented as interactive automata visualizations. It focuses
+on two prepared classroom examples:
 
-- `/regex`: select one of two regex presets, load the matching hardcoded DFA,
-  render it, and animate string acceptance.
-- `/cfg`: select one of two read-only converted CFG presets, render a compact
-  PDA-style flowchart, and animate recognition with input-tape feedback.
+- Regex -> DFA: two assigned regular expressions are represented as hardcoded
+  minimized DFA diagrams.
+- CFG -> PDA: two converted CFG presets are represented as compact PDA-style
+  READ-flow diagrams.
 
-Important distinction: the renamed `(IRRELEVANT)` algorithm files are not part
-of the current visible frontend workflow.
+The project is intentionally preset-based. The regular expressions and CFG
+presets were analyzed ahead of time, and the browser loads the matching
+hardcoded visualization so the demonstration is stable and easy to follow.
 
-## Removed / Irrelevant Backend Endpoints
+## Strongest Features
 
-These routes are no longer exposed from the current simplified `app.py`.
+- Automatic diagram rendering after selecting a preset.
+- Interactive string testing with accepted/rejected status per row.
+- Animated state traversal using Cytoscape.js.
+- Input tape that tracks the current symbol during simulation.
+- Pause and resume controls for slower demonstrations.
+- Simulate buttons that scroll directly to the visualizer.
+- CFG derivation check that shows how the input follows the grammar structure.
+- Academic notebook-inspired interface with navy and teal styling.
 
-| Endpoint | Function |
-|---|---|
-| `(IRRELEVANT) POST /api/regex/nfa` | Regex string -> NFA dict. |
-| `(IRRELEVANT) POST /api/regex/dfa` | NFA dict -> minimized DFA dict. |
-| `(IRRELEVANT) POST /api/regex/check` | DFA + string -> `{ valid, path }`. |
-| `(IRRELEVANT) POST /api/regex/nfa/check` | NFA + string -> one path trace. |
-| `(IRRELEVANT) POST /api/cfg/pda` | CFG text -> PDA dict. |
-| `(IRRELEVANT) POST /api/cfg/check` | PDA + string -> BFS PDA trace. |
+## What To Review
 
-## Regex Pipeline
+### Regex -> DFA Page
 
-```text
-regex
--> recursive-descent parser
--> `(IRRELEVANT)` Thompson NFA
--> `(IRRELEVANT)` subset construction DFA
--> Hopcroft minimization
--> DFA path checker
--> browser animation
-```
+The regex page should show two preset expressions. Selecting a preset should
+immediately render the corresponding DFA. A reviewer should test both valid
+and invalid strings, then run the animation and observe:
 
-`(IRRELEVANT) thompson.py` supports union as `|`, `U`, or `+`. The plus sign means union,
-not programming-regex Kleene-plus.
+- active state highlighting
+- active transition highlighting
+- current-character tape movement
+- final green accepted state or red rejected result
+- reset behavior returning the diagram and tape to the initial view
 
-`(IRRELEVANT) subset_construction.py` builds reachable DFA states from epsilon closures,
-adds a trap state only when needed, and then minimizes with Hopcroft's
-algorithm.
+### CFG -> PDA Page
 
-`(IRRELEVANT) string_checker_dfa.py` returns:
+The CFG page should show two read-only converted CFG presets. Selecting a
+preset should immediately render the matching PDA-style flowchart. A reviewer
+should test valid and invalid strings, then observe:
 
-```json
-{ "valid": true, "path": [0, 1, 2] }
-```
+- READ-node movement through the flowchart
+- active transition highlighting
+- input tape progress
+- CFG derivation steps
+- epsilon display when a nullable grammar part is chosen
+- final ACCEPT or REJECT result
 
-The UI uses `path` to animate the DFA.
+## CV-Ready Description
 
-## NFA Checker
+Automata Converter Program: Built an educational Flask web application for
+visualizing manually derived automata from assigned regular expressions and
+CFG presets. Implemented hardcoded DFA and PDA-style flow visualizations with
+Cytoscape.js, interactive string testing, animated state transitions,
+input-tape tracking, pause/resume simulation controls, and CFG derivation
+feedback for classroom demonstrations.
 
-The NFA checker exists in the backend but is not shown in the current UI. It
-uses BFS over `(state, input_position)` and returns one accepting path, or the
-path that consumed the most input on rejection.
+## Likely Questions
 
-## CFG/PDA Backend
+**Is this a general automata converter?**  
+No. The current version is a preset-based visualizer. It focuses on the
+specific regular expressions and CFG presets used for the activity.
 
-`(IRRELEVANT) cfg_to_pda.py` creates a top-down PDA with:
+**Why are the automata hardcoded?**  
+The assigned expressions were manually analyzed and converted into DFA
+structures first. The hardcoded browser implementation keeps the final
+demonstration consistent and avoids unexpected runtime conversion errors.
 
-- `q0`: start
-- `q1`: work state
-- `q2`: accept state
+**Does the CFG page use a full stack simulation?**  
+The current page is a compact PDA-style recognition visualization. It focuses
+on READ-flow progress, input tracking, and derivation feedback instead of
+displaying a general-purpose PDA stack.
 
-It adds an initial transition, one transition per production, one terminal
-match per terminal, and an accept transition. Its push convention is:
-
-```text
-push[0] becomes the top of the stack
-```
-
-`(IRRELEVANT) string_checker_pda.py` is BFS-based. It no longer uses the older
-deterministic LL-style scoring heuristic. It searches configurations:
-
-```text
-(remaining_input, stack_tuple)
-```
-
-The default cap is `20000` explored configurations. If the cap is reached, the
-result includes an error message warning about left recursion or unbounded
-expansion.
-
-## Current CFG Page
-
-The current `static/js/cfg.js` implementation is preset-based:
-
-- two converted CFG text blocks
-- a matching built-in DFA specification for each selected language
-- a compact flowchart with READ, ACCEPT, and REJECT nodes
-- a current-character tape and step log that track the READ flow
-
-This page is best described as a compact PDA-style recognition visualization,
-not a full arbitrary CFG-to-PDA renderer.
-
-## Likely Defense Questions
-
-**Is the regex conversion real or hardcoded?**  
-The current UI is hardcoded. It loads a fixed minimized DFA object for the
-selected preset. The renamed `(IRRELEVANT)` files are not called by the page.
-
-**Why does the regex page only show a DFA?**  
-The backend still builds an NFA first, but the current UI focuses on the
-minimized DFA output and DFA path animation.
-
-**Does the CFG page parse any grammar?**  
-Not in the current UI. It uses two fixed converted CFG presets. The backend
-has general CFG/PDA algorithms, but the page itself is preset-based.
-
-**What changed in the PDA simulator?**  
-The old documentation described a deterministic production-scoring heuristic.
-The current `(IRRELEVANT) string_checker_pda.py` uses BFS over configurations, which can
-find a path that requires backtracking, within a search cap.
-
-**Why use a trap state only sometimes?**  
-It keeps simple diagrams smaller. A trap state is added only if the DFA would
-otherwise have an undefined transition.
-
-## Key Limitations
-
-- Regex atoms are single characters.
-- No character classes, escapes, `?`, range counts, or programming
-  Kleene-plus.
-- `+` is union.
-- Current regex UI has no NFA tab.
-- Current CFG UI is limited to two presets.
-- General PDA BFS can be expensive on difficult grammars.
+**What makes the project useful for learning?**  
+It turns static automata diagrams into step-by-step animations. Students can
+see which state is active, which character is being read, and exactly where a
+string is accepted or rejected.
 
 ## Files To Know
 
-| File | Why it matters |
+| File | Purpose |
 |---|---|
-| `app.py` | Flask routes and API boundary. |
-| `(IRRELEVANT) algorithms/(IRRELEVANT) thompson.py` | Regex parser and NFA construction. |
-| `(IRRELEVANT) algorithms/(IRRELEVANT) subset_construction.py` | DFA construction and minimization. |
-| `(IRRELEVANT) algorithms/(IRRELEVANT) string_checker_dfa.py` | DFA path checking. |
-| `(IRRELEVANT) algorithms/(IRRELEVANT) cfg_to_pda.py` | General CFG-to-PDA construction. |
-| `(IRRELEVANT) algorithms/(IRRELEVANT) string_checker_pda.py` | BFS PDA simulation. |
-| `static/js/regex.js` | Current Regex -> DFA UI. |
-| `static/js/cfg.js` | Current preset CFG flow UI. |
+| `app.py` | Serves the home page, Regex -> DFA page, and CFG -> PDA page. |
+| `templates/index.html` | Mode selection screen. |
+| `templates/regex.html` | Regex -> DFA page structure. |
+| `templates/cfg.html` | CFG -> PDA page structure. |
+| `static/js/regex.js` | Hardcoded DFA data, string checking, and DFA animation. |
+| `static/js/cfg.js` | CFG presets, PDA-style flow, derivation check, and animation. |
+| `static/css/style.css` | Shared academic notebook theme. |
+| `static/css/regex.css` | Regex page styling. |
+| `static/css/cfg.css` | CFG page styling. |
+
+## Current Scope
+
+- Supports two Regex -> DFA presets.
+- Supports two CFG -> PDA-style presets.
+- Does not accept arbitrary regex or CFG input in the current UI.
+- Uses Cytoscape.js from a CDN for graph rendering.
+- Runs locally with Flask and no frontend build step.
